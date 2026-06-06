@@ -1,36 +1,133 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💕 Emerson & Plancarte — Sitio Web de Boda
 
-## Getting Started
+Sitio web elegante de bodas con diseño **glassmorphism**, animaciones fluidas y sistema completo de RSVP.
 
-First, run the development server:
+## 🚀 Tecnologías
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Área | Tecnología |
+|------|-----------|
+| Framework | **Next.js 16** con App Router + TypeScript |
+| Estilos | **Tailwind CSS v4** + CSS Variables |
+| Animaciones | **Framer Motion** + **GSAP** ScrollTrigger |
+| Base de datos | **Supabase** (PostgreSQL + RLS + Realtime) |
+| Emails | **Resend** |
+| Música | **Spotify Web API** |
+| Mapas | **Google Maps Embed API** |
+| Deploy | **Vercel** |
+
+## 📋 Secciones
+
+1. **Hero** — Portada full-screen con bokeh animado y pétalos flotantes (Canvas)
+2. **Countdown** — Contador regresivo con glass cards
+3. **Detalles** — 4 glass cards con información del evento
+4. **Nuestra Historia** — Timeline vertical con GSAP ScrollTrigger
+5. **Código de Vestimenta** — Paleta de colores y recomendaciones
+6. **Ubicación** — Google Maps con estilos personalizados
+7. **RSVP** — Formulario con acompañantes dinámicos
+8. **Playlist** — Búsqueda Spotify + sistema de votos
+
+## 🎨 Sistema de Diseño
+
+### Paleta Cromática
+- **Ivory** `#FFFFF0` — Fondo principal
+- **Champagne** `#F7E7CE` — Bordes
+- **Blush** `#F4C2C2` — Acentos rosa
+- **Rose** `#E8A0BF` — Botones
+- **Burgundy** `#722F37` — Acento primario
+- **Gold** `#C5A55A` — Ornamentos
+- **Sage** `#9CAF88` — Naturaleza
+
+### Glassmorphism
+```css
+backdrop-filter: blur(20px) saturate(180%);
+background: rgba(255, 255, 255, 0.18);
+border: 1px solid rgba(255, 255, 255, 0.35);
+border-radius: 24px;
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🏗️ Estructura
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── rsvp/route.ts       # API de confirmación
+│   │   ├── songs/route.ts      # API de canciones
+│   │   └── spotify/search/     # Búsqueda Spotify
+│   ├── admin/page.tsx          # Panel admin
+│   ├── globals.css             # Sistema de diseño
+│   ├── layout.tsx              # Layout raíz + fuentes
+│   └── page.tsx                # Página principal
+├── components/
+│   ├── sections/               # 8 secciones del sitio
+│   ├── shared/                 # Componentes compartidos
+│   └── ui/                     # UI primitives
+├── data/
+│   └── wedding.ts              # Datos de la boda
+├── hooks/
+│   └── useCountdown.ts         # Hook de countdown
+└── lib/
+    ├── config.ts               # Configuración
+    ├── supabase.ts             # Cliente Supabase
+    └── utils.ts                # Utilidades
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ⚡ Inicio Rápido
 
-## Learn More
+```bash
+# 1. Clonar e instalar
+npm install
 
-To learn more about Next.js, take a look at the following resources:
+# 2. Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus credenciales
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 3. Configurar Supabase
+# Ejecutar supabase/schema.sql en Supabase SQL Editor
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 4. Correr en desarrollo
+npm run dev
 
-## Deploy on Vercel
+# 5. Build para producción
+npm run build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🔧 Variables de Entorno
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Descripción |
+|----------|-------------|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Clave anónima de Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Clave de servicio (server-side) |
+| `RESEND_API_KEY` | API key de Resend para emails |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | API key de Google Maps |
+| `SPOTIFY_CLIENT_ID` | Client ID de Spotify |
+| `SPOTIFY_CLIENT_SECRET` | Client Secret de Spotify |
+
+## 📊 Base de Datos
+
+Ver `supabase/schema.sql` para el esquema completo con:
+- **guests** — Invitados y confirmaciones
+- **companions** — Acompañantes
+- **songs** — Playlist musical
+- **admin_settings** — Configuración del sitio
+- **RLS policies** — Seguridad a nivel de fila
+
+## 🚀 Deploy
+
+### Vercel (Recomendado)
+```bash
+npm i -g vercel
+vercel
+```
+
+### Variables en Vercel
+Configurar las variables de entorno en el dashboard de Vercel o usar `vercel.json`.
+
+## 📱 Responsive
+
+El sitio es completamente responsive y ha sido diseñado con un enfoque mobile-first.
+
+---
+
+> Hecho con ❤️ para Emerson & Plancarte

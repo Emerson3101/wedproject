@@ -1,0 +1,25 @@
+{
+  "name": "wedding-site",
+  "framework": "nextjs",
+  "regions": ["cdn"],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@wedding-supabase-url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@wedding-supabase-anon-key",
+    "SUPABASE_SERVICE_ROLE_KEY": "@wedding-supabase-service-key",
+    "RESEND_API_KEY": "@wedding-resend-api-key",
+    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": "@wedding-google-maps-key",
+    "SPOTIFY_CLIENT_ID": "@wedding-spotify-client-id",
+    "SPOTIFY_CLIENT_SECRET": "@wedding-spotify-client-secret"
+  }
+}
