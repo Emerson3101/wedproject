@@ -12,18 +12,5 @@
         }
       ]
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_SITE_URL": "@next-public-site-url",
-    "NEXT_PUBLIC_SUPABASE_URL": "@next-public-supabase-url",
-    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@next-public-supabase-anon-key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
-    "RESEND_API_KEY": "@resend-api-key",
-    "SEND_FROM_EMAIL": "@send-from-email",
-    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY": "@next-public-google-maps-api-key",
-    "SPOTIFY_CLIENT_ID": "@spotify-client-id",
-    "SPOTIFY_CLIENT_SECRET": "@spotify-client-secret",
-    "INVITATION_CODE": "@invitation-code",
-    "NEXT_PUBLIC_ADMIN_PASSWORD": "@next-public-admin-password"
-  }
+  ]
 }
