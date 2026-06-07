@@ -40,15 +40,13 @@ export async function POST(request: NextRequest) {
     const supabase = createSupabaseServerClient();
 
     if (supabase) {
-      // Usar la función SQL para guardar guest + companions
-      const companionsJson = companions && companions.length > 0
-        ? JSON.stringify(
-            companions.map((c) => ({
+      const companionsPayload =
+        companions && companions.length > 0
+          ? companions.map((c) => ({
               name: c.name,
               dietary_restrictions: c.dietary || null,
             }))
-          )
-        : "[]";
+          : [];
 
       const { error: rsvpError } = await supabase.rpc("submit_rsvp", {
         p_name: name,
@@ -59,12 +57,15 @@ export async function POST(request: NextRequest) {
         p_dietary: dietary || null,
         p_message: message || null,
         p_side: null,
-        p_companions: companionsJson,
+        p_companions: companionsPayload,
       });
 
       if (rsvpError) {
         console.error("Supabase RSVP error:", rsvpError);
-        // No bloquear — guardar en logs y continuar
+        return NextResponse.json(
+          { error: "No se pudo guardar tu confirmación. Intenta de nuevo." },
+          { status: 500 }
+        );
       }
     } else {
       console.warn(

@@ -35,6 +35,9 @@ export const invitationCode =
 export const isSupabaseConfigured =
   supabaseConfig.url !== "" && supabaseConfig.anonKey !== "";
 
+export const isSupabaseServerConfigured =
+  isSupabaseConfigured && supabaseConfig.serviceRoleKey !== "";
+
 export const isResendConfigured = resendConfig.apiKey !== "";
 
 export const isGoogleMapsConfigured = googleMapsConfig.apiKey !== "";

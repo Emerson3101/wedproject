@@ -4,9 +4,9 @@
    ============================================ */
 
 export const couple = {
-  name1: "Emerson",
-  name2: "Plancarte",
-  displayName: "E & P",
+  name1: "Alma",
+  name2: "Chava",
+  displayName: "A & C",
 } as const;
 
 export const weddingDate = new Date("2025-10-18T16:00:00");

@@ -1,5 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
-import { supabaseConfig, isSupabaseConfigured } from "./config";
+import {
+  supabaseConfig,
+  isSupabaseConfigured,
+  isSupabaseServerConfigured,
+} from "./config";
 
 /* ============================================
    CLIENTE SUPABASE — Browser (Client Components)
@@ -12,9 +16,9 @@ export const supabase = isSupabaseConfigured
    CLIENTE SUPABASE — Server (Server Components/API Routes)
    ============================================ */
 export function createSupabaseServerClient() {
-  if (!isSupabaseConfigured) {
+  if (!isSupabaseServerConfigured) {
     console.warn(
-      "Supabase no está configurado. Configura las variables de entorno."
+      "Supabase server no está configurado. Revisa NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY y SUPABASE_SERVICE_ROLE_KEY."
     );
     return undefined;
   }
