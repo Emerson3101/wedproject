@@ -25,7 +25,7 @@ export default function HeroSection() {
       <div className="absolute inset-0 bg-romantic" />
 
       {/* Contenido Central */}
-      <div className="relative z-20 text-center px-4">
+      <div className="hero-content relative z-20 text-center px-4 pt-20 md:pt-0">
         {/* Ornamento superior */}
         <motion.div
           initial={{ opacity: 0, y: -30 }}

@@ -18,7 +18,7 @@ import PlaylistSection from "@/components/sections/PlaylistSection";
    ============================================ */
 export default function Home() {
   return (
-    <main className="relative min-h-screen">
+    <main className="relative min-h-screen overflow-x-hidden w-full">
       {/* Fondos animados — globales */}
       <BokehBackground />
       <FloatingPetals />

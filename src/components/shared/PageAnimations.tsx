@@ -35,11 +35,15 @@ export default function PageAnimations() {
           );
         });
 
-        // Parallax en elementos del hero
-        const heroContent = document.querySelector("#hero");
-        if (heroContent) {
-          gsap.to(heroContent, {
-            yPercent: 30,
+        // Parallax solo en el contenido del hero (no en la sección completa)
+        const heroInner = document.querySelector("#hero .hero-content");
+        if (heroInner) {
+          const parallaxAmount = window.matchMedia("(max-width: 767px)").matches
+            ? 12
+            : 25;
+
+          gsap.to(heroInner, {
+            yPercent: parallaxAmount,
             ease: "none",
             scrollTrigger: {
               trigger: "#hero",
