@@ -1,88 +1,63 @@
 -- ============================================
--- SUPABASE — ESCHEMA DE BASE DE DATOS
+-- MIGRACIÓN: Actualizar esquema existente
 -- Ejecuta este SQL en Supabase SQL Editor
+-- Seguro de ejecutar varias veces (idempotente)
 -- ============================================
 
 -- ============================================
--- ENUMS
+-- 1. ENUMS — Crear solo si no existen
 -- ============================================
-CREATE TYPE guest_status AS ENUM ('pending', 'confirmed', 'declined');
-CREATE TYPE guest_side AS ENUM ('bride', 'groom');
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'guest_status') THEN
+    CREATE TYPE guest_status AS ENUM ('pending', 'confirmed', 'declined');
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'guest_side') THEN
+    CREATE TYPE guest_side AS ENUM ('bride', 'groom');
+  END IF;
+END $$;
 
 -- ============================================
--- TABLA: guests
+-- 2. TABLA: songs — Migrar Spotify → YouTube
 -- ============================================
-CREATE TABLE IF NOT EXISTS guests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL,
-  email VARCHAR(255) NOT NULL,
-  phone VARCHAR(50),
-  invitation_code VARCHAR(50) NOT NULL DEFAULT 'boda2025',
-  status guest_status NOT NULL DEFAULT 'pending',
-  num_companions INTEGER NOT NULL DEFAULT 0,
-  dietary_restrictions TEXT,
-  message TEXT,
-  side guest_side,
-  confirmed_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+-- Renombrar columnas solo si las antiguas aún existen
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'songs' AND column_name = 'spotify_id'
+  ) THEN
+    ALTER TABLE songs RENAME COLUMN spotify_id TO youtube_video_id;
+  END IF;
+END $$;
 
-  CONSTRAINT guests_email_unique UNIQUE (email)
-);
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'songs' AND column_name = 'cover_url'
+  ) THEN
+    ALTER TABLE songs RENAME COLUMN cover_url TO thumbnail_url;
+  END IF;
+END $$;
 
--- Índice para búsqueda rápida por código de invitación
-CREATE INDEX IF NOT EXISTS idx_guests_invitation_code ON guests(invitation_code);
-CREATE INDEX IF NOT EXISTS idx_guests_status ON guests(status);
-CREATE INDEX IF NOT EXISTS idx_guests_email ON guests(email);
-
--- ============================================
--- TABLA: companions
--- ============================================
-CREATE TABLE IF NOT EXISTS companions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  guest_id UUID NOT NULL REFERENCES guests(id) ON DELETE CASCADE,
-  name VARCHAR(255) NOT NULL,
-  dietary_restrictions TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_companions_guest_id ON companions(guest_id);
-
--- ============================================
--- TABLA: songs
--- ============================================
-CREATE TABLE IF NOT EXISTS songs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(255) NOT NULL,
-  artist VARCHAR(255) NOT NULL,
-  youtube_video_id VARCHAR(100) UNIQUE,
-  thumbnail_url TEXT,
-  added_by VARCHAR(100) NOT NULL DEFAULT 'Guest',
-  votes INTEGER NOT NULL DEFAULT 0,
-  is_approved BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_songs_votes ON songs(votes DESC);
-CREATE INDEX IF NOT EXISTS idx_songs_approved ON songs(is_approved);
-CREATE INDEX IF NOT EXISTS idx_songs_youtube_video_id ON songs(youtube_video_id);
-
--- ============================================
--- MIGRATION: Spotify → YouTube (aplica si ya existe la tabla)
--- ============================================
--- Renombrar columnas de Spotify a YouTube
-ALTER TABLE songs RENAME COLUMN spotify_id TO youtube_video_id;
-ALTER TABLE songs RENAME COLUMN cover_url TO thumbnail_url;
--- Eliminar columnas que ya no se necesitan
+-- Eliminar columnas obsoletas (seguro si ya no existen)
 ALTER TABLE songs DROP COLUMN IF EXISTS album;
 ALTER TABLE songs DROP COLUMN IF EXISTS preview_url;
--- Actualizar indices
-DROP INDEX IF EXISTS idx_songs_spotify_id;
-CREATE INDEX IF NOT EXISTS idx_songs_youtube_video_id ON songs(youtube_video_id);
--- Ignorar errores si las columnas ya fueron renombradas
+
+-- Asegurar que youtube_video_id tiene constraint UNIQUE
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'songs_youtube_video_id_key'
+      AND conrelid = 'songs'::regclass
+  ) THEN
+    ALTER TABLE songs ADD CONSTRAINT songs_youtube_video_id_key UNIQUE (youtube_video_id);
+  END IF;
+END $$;
 
 -- ============================================
--- TABLA: admin_settings (Configuración del sitio)
+-- 3. TABLA: admin_settings (nueva)
 -- ============================================
 CREATE TABLE IF NOT EXISTS admin_settings (
   key VARCHAR(100) PRIMARY KEY,
@@ -90,7 +65,7 @@ CREATE TABLE IF NOT EXISTS admin_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Valores por defecto
+-- Valores por defecto (no duplica si ya existen)
 INSERT INTO admin_settings (key, value) VALUES
   ('wedding_date', '{"date": "2025-10-18T16:00:00", "timezone": "America/Mexico_City"}'),
   ('couple_names', '{"name1": "Emerson", "name2": "Plancarte"}'),
@@ -100,7 +75,21 @@ INSERT INTO admin_settings (key, value) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- ============================================
--- TRIGGER: Auto-update updated_at
+-- 4. INDICES — Crear solo si faltan
+-- ============================================
+CREATE INDEX IF NOT EXISTS idx_guests_invitation_code ON guests(invitation_code);
+CREATE INDEX IF NOT EXISTS idx_guests_status ON guests(status);
+CREATE INDEX IF NOT EXISTS idx_guests_email ON guests(email);
+CREATE INDEX IF NOT EXISTS idx_companions_guest_id ON companions(guest_id);
+CREATE INDEX IF NOT EXISTS idx_songs_votes ON songs(votes DESC);
+CREATE INDEX IF NOT EXISTS idx_songs_approved ON songs(is_approved);
+CREATE INDEX IF NOT EXISTS idx_songs_youtube_video_id ON songs(youtube_video_id);
+
+-- Eliminar indices obsoletos
+DROP INDEX IF EXISTS idx_songs_spotify_id;
+
+-- ============================================
+-- 5. TRIGGER: Auto-update updated_at
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -110,43 +99,66 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER update_guests_updated_at
-  BEFORE UPDATE ON guests
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgname = 'update_guests_updated_at'
+  ) THEN
+    CREATE TRIGGER update_guests_updated_at
+      BEFORE UPDATE ON guests
+      FOR EACH ROW
+      EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END $$;
 
 -- ============================================
--- ROW LEVEL SECURITY (RLS)
+-- 6. ROW LEVEL SECURITY (RLS)
 -- ============================================
-
--- Habilitar RLS en todas las tablas
 ALTER TABLE guests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE companions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE songs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE admin_settings ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- POLICIAS: guests
+-- 6a. Eliminar policias existentes para recrearlas limpiamente
+-- ============================================
+-- Guests
+DROP POLICY IF EXISTS "Guests can view own records" ON guests;
+DROP POLICY IF EXISTS "Anyone can submit RSVP" ON guests;
+DROP POLICY IF EXISTS "Service role can update guests" ON guests;
+
+-- Companions
+DROP POLICY IF EXISTS "Anyone can view companions" ON companions;
+DROP POLICY IF EXISTS "Anyone can add companions" ON companions;
+DROP POLICY IF EXISTS "Service role can manage companions" ON companions;
+
+-- Songs
+DROP POLICY IF EXISTS "Anyone can view songs" ON songs;
+DROP POLICY IF EXISTS "Anyone can add songs" ON songs;
+DROP POLICY IF EXISTS "Anyone can vote on songs" ON songs;
+DROP POLICY IF EXISTS "Service role can manage songs" ON songs;
+
+-- Admin settings
+DROP POLICY IF EXISTS "Service role can manage settings" ON admin_settings;
+
+-- ============================================
+-- 6b. Recrear policias actualizadas
 -- ============================================
 
--- Los invitados pueden leer solo sus propios registros
+-- Guests
 CREATE POLICY "Guests can view own records"
   ON guests FOR SELECT
   USING (email = current_setting('request.header.x-guest-email', true) OR TRUE);
 
--- Cualquier persona puede insertar (formulario RSVP público)
 CREATE POLICY "Anyone can submit RSVP"
   ON guests FOR INSERT
   WITH CHECK (TRUE);
 
--- Solo servicio (admin) puede actualizar/eliminar
 CREATE POLICY "Service role can update guests"
   ON guests FOR ALL
   USING (TRUE);
 
--- ============================================
--- POLICIAS: companions
--- ============================================
+-- Companions
 CREATE POLICY "Anyone can view companions"
   ON companions FOR SELECT
   USING (TRUE);
@@ -159,9 +171,7 @@ CREATE POLICY "Service role can manage companions"
   ON companions FOR ALL
   USING (TRUE);
 
--- ============================================
--- POLICIAS: songs
--- ============================================
+-- Songs
 CREATE POLICY "Anyone can view songs"
   ON songs FOR SELECT
   USING (TRUE);
@@ -179,15 +189,13 @@ CREATE POLICY "Service role can manage songs"
   ON songs FOR ALL
   USING (TRUE);
 
--- ============================================
--- POLICIAS: admin_settings
--- ============================================
+-- Admin settings
 CREATE POLICY "Service role can manage settings"
   ON admin_settings FOR ALL
   USING (TRUE);
 
 -- ============================================
--- FUNCIONES HELPER
+-- 7. FUNCIONES HELPER
 -- ============================================
 
 -- Función para submit RSVP completo (guest + companions)
@@ -207,7 +215,6 @@ AS $$
 DECLARE
   v_guest_id UUID;
 BEGIN
-  -- Insertar o actualizar guest
   INSERT INTO guests (name, email, phone, status, num_companions, dietary_restrictions, message, side, confirmed_at)
   VALUES (p_name, p_email, p_phone, p_status, p_num_companions, p_dietary, p_message, p_side, NOW())
   ON CONFLICT (email) DO UPDATE SET
@@ -221,10 +228,8 @@ BEGIN
     updated_at = NOW()
   RETURNING id INTO v_guest_id;
 
-  -- Eliminar acompañantes anteriores
   DELETE FROM companions WHERE guest_id = v_guest_id;
 
-  -- Insertar nuevos acompañantes
   IF p_companions IS NOT NULL AND jsonb_array_length(p_companions) > 0 THEN
     INSERT INTO companions (guest_id, name, dietary_restrictions)
     SELECT v_guest_id,

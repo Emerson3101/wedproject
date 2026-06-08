@@ -56,10 +56,8 @@ export interface Song {
   id: string;
   title: string;
   artist: string;
-  album: string;
-  spotify_id: string;
-  cover_url: string;
-  preview_url?: string | null;
+  youtube_video_id: string;
+  thumbnail_url: string;
   added_by: string;
   votes: number;
   is_approved: boolean;

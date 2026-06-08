@@ -34,7 +34,7 @@ wedproject/
 │   │   └── wedding.ts              # Central wedding data (couple, dates, story, nav)
 │   │
 │   ├── lib/
-│   │   ├── config.ts               # App config (Supabase, Resend, Spotify, Cloudinary, env checks)
+│   │   ├── config.ts               # App config (Supabase, Resend, YouTube, Cloudinary, env checks)
 │   │   ├── supabase.ts             # Supabase client (browser + server) + DB type definitions
 │   │   └── utils.ts                # Shared utilities (cn, formatDate, debounce, sleep)
 │   │
@@ -51,7 +51,7 @@ wedproject/
 │   │   │   ├── LocationSection.tsx       # Venue cards + embedded Google Map
 │   │   │   ├── PhotoUploadSection.tsx    # Guest photo upload (Cloudinary + Google Photos)
 │   │   │   ├── RSVPSection.tsx           # RSVP form with companion management
-│   │   │   └── PlaylistSection.tsx       # Musical playlist (Spotify search + voting)
+│   │   │   └── PlaylistSection.tsx       # Musical playlist (YouTube search + embed player + voting)
 │   │   │
 │   │   ├── shared/                 # Reusable layout/shell components
 │   │   │   ├── Navigation.tsx          # Fixed top nav with mobile hamburger menu
@@ -81,8 +81,8 @@ wedproject/
 │   │       │   └── route.ts            # POST/GET — save & query RSVP responses
 │   │       ├── songs/
 │   │       │   └── route.ts            # POST/PATCH — add songs & vote
-│   │       ├── spotify/search/
-│   │       │   └── route.ts            # GET — proxy Spotify search API
+│   │       ├── youtube/search/
+│   │       │   └── route.ts            # GET — proxy YouTube search API
 │   │       └── test/guest/
 │   │           └── route.ts            # GET — test endpoint for guest data
 │   │
@@ -106,7 +106,7 @@ Single source of truth for all wedding-related content. Exported constants:
 Environment-driven feature toggles:
 - **Supabase** — Database connectivity check
 - **Resend** — Email delivery check
-- **Spotify** — Music API check
+- **YouTube** — Music API check
 - **Cloudinary** — Photo upload check
 - **Google Photos** — Shared album link
 
@@ -127,7 +127,7 @@ Environment-driven feature toggles:
 | 6  | LocationSection    | `#location`   | Venue cards, Google Maps links, embedded map      |
 | 7  | PhotoUploadSection | `#photos`     | Cloudinary upload widget + Google Photos album    |
 | 8  | RSVPSection        | `#rsvp`       | Full RSVP form, companions, dietary, messaging    |
-| 9  | PlaylistSection    | `#playlist`   | Spotify search, manual add, vote on songs         |
+| 9  | PlaylistSection    | `#playlist`   | YouTube search, embedded player, manual add, vote on songs |
 
 ## API Endpoints
 
@@ -137,7 +137,9 @@ Environment-driven feature toggles:
 | GET    | `/api/rsvp?email=...`    | Check guest RSVP status                    |
 | POST   | `/api/songs`             | Add a song request                         |
 | PATCH  | `/api/songs`             | Vote on a song                             |
-| GET    | `/api/spotify/search?q=` | Search Spotify for songs                   |
+| GET    | `/api/youtube/search?q=` | Search YouTube for videos                  |
+| DELETE | `/api/songs?songId=`     | Delete a song (admin)                      |
+| PATCH  | `/api/admin/songs`       | Approve/reject a song (admin)              |
 
 ## Design System
 
@@ -198,4 +200,4 @@ npm run lint     # Run ESLint
 - The countdown target date is **October 18, 2026** (configured in `src/data/wedding.ts`)
 - The site is in Spanish (`lang="es"`) with `es-ES` locale for date formatting
 - Admin panel is accessible at `/admin` (password-protected)
-- Image remote patterns allow `i.scdn.co` (Spotify), `*.supabase.co`, and `*.res.cloudinary.com`
+- Image remote patterns allow `img.youtube.com` (YouTube), `*.supabase.co`, and `*.res.cloudinary.com`

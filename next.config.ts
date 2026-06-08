@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "i.scdn.co", // Spotify album covers
+        hostname: "img.youtube.com", // YouTube thumbnails
       },
       {
         protocol: "https",

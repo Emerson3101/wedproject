@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase";
-import { spotifyConfig, isSpotifyConfigured } from "@/lib/config";
 
 /* ============================================
    API: GET /api/songs
@@ -42,14 +41,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, artist, album, spotifyId, coverUrl, previewUrl, addedBy } =
+    const { title, artist, youtubeVideoId, thumbnailUrl, addedBy } =
       body as {
         title: string;
         artist: string;
-        album?: string;
-        spotifyId?: string;
-        coverUrl?: string;
-        previewUrl?: string;
+        youtubeVideoId?: string;
+        thumbnailUrl?: string;
         addedBy?: string;
       };
 
@@ -68,10 +65,8 @@ export async function POST(request: NextRequest) {
         .insert({
           title,
           artist,
-          album: album || null,
-          spotify_id: spotifyId || null,
-          cover_url: coverUrl || null,
-          preview_url: previewUrl || null,
+          youtube_video_id: youtubeVideoId || null,
+          thumbnail_url: thumbnailUrl || null,
           added_by: addedBy || "Guest",
           is_approved: false,
         })
@@ -103,7 +98,7 @@ export async function POST(request: NextRequest) {
 }
 
 /* ============================================
-   API: PATCH /api/songs/vote
+   API: PATCH /api/songs
    Votar por una canción.
    ============================================ */
 export async function PATCH(request: NextRequest) {
@@ -143,6 +138,54 @@ export async function PATCH(request: NextRequest) {
     );
   } catch (error) {
     console.error("Vote API error:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor." },
+      { status: 500 }
+    );
+  }
+}
+
+/* ============================================
+   API: DELETE /api/songs
+   Eliminar una canción (usado por el admin).
+   ============================================ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const songId = searchParams.get("songId");
+
+    if (!songId) {
+      return NextResponse.json(
+        { error: "El ID de la canción es requerido." },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createSupabaseServerClient();
+
+    if (supabase) {
+      const { error } = await supabase
+        .from("songs")
+        .delete()
+        .eq("id", songId);
+
+      if (error) {
+        console.error("Songs DELETE error:", error);
+        return NextResponse.json(
+          { error: "Error al eliminar la canción." },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json(
+      { error: "Backend no disponible." },
+      { status: 503 }
+    );
+  } catch (error) {
+    console.error("Songs DELETE error:", error);
     return NextResponse.json(
       { error: "Error interno del servidor." },
       { status: 500 }

@@ -41,13 +41,16 @@ interface Stats {
   totalCompanions: number;
 }
 
-interface SongRow {
+interface SongData {
   id: string;
   title: string;
   artist: string;
+  youtube_video_id: string;
+  thumbnail_url: string;
   votes: number;
   is_approved: boolean;
   added_by: string;
+  created_at: string;
 }
 
 export default function AdminPage() {
@@ -57,8 +60,9 @@ export default function AdminPage() {
     "dashboard"
   );
   const [guests, setGuests] = useState<GuestWithCompanions[]>([]);
-  const [songs, setSongs] = useState<SongRow[]>([]);
+  const [songs, setSongs] = useState<SongData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [songsLoading, setSongsLoading] = useState(true);
   const [stats, setStats] = useState<Stats>({
     total: 0,
     confirmed: 0,
@@ -67,6 +71,7 @@ export default function AdminPage() {
     totalCompanions: 0,
   });
   const [apiError, setApiError] = useState<string | null>(null);
+  const [songsError, setSongsError] = useState<string | null>(null);
   // Track which guest rows are expanded
   const [expandedGuests, setExpandedGuests] = useState<Set<string>>(new Set());
 
@@ -147,6 +152,112 @@ export default function AdminPage() {
       cancelled = true;
     };
   }, [isAuthenticated]);
+
+  // Cargar canciones
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== "songs") return;
+
+    let cancelled = false;
+
+    const fetchSongs = async () => {
+      setSongsLoading(true);
+      setSongsError(null);
+
+      try {
+        const res = await fetch("/api/songs");
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `API returned status ${res.status}`);
+        }
+
+        if (!cancelled) {
+          setSongs(data.songs || []);
+        }
+      } catch (err) {
+        console.error("Error loading songs:", err);
+        if (!cancelled) {
+          setSongsError(
+            err instanceof Error ? err.message : "Error cargando las canciones"
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setSongsLoading(false);
+        }
+      }
+    };
+
+    fetchSongs();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, activeTab]);
+
+  // Aprobar/desaprobar canción
+  const toggleApproval = async (song: SongData) => {
+    try {
+      const res = await fetch("/api/admin/songs", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "boda2025"}`,
+        },
+        body: JSON.stringify({
+          songId: song.id,
+          isApproved: !song.is_approved,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Error al actualizar");
+      }
+
+      // Actualizar estado local
+      setSongs((prev) =>
+        prev.map((s) =>
+          s.id === song.id ? { ...s, is_approved: !s.is_approved } : s
+        )
+      );
+    } catch (err) {
+      console.error("Error toggling approval:", err);
+      alert("Error al actualizar el estado de la canción");
+    }
+  };
+
+  // Eliminar canción
+  const deleteSong = async (songId: string) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar esta canción?")) return;
+
+    try {
+      const res = await fetch(`/api/songs?songId=${songId}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Error al eliminar");
+      }
+
+      // Actualizar estado local
+      setSongs((prev) => prev.filter((s) => s.id !== songId));
+    } catch (err) {
+      console.error("Error deleting song:", err);
+      alert("Error al eliminar la canción");
+    }
+  };
+
+  // Calcular estadísticas de canciones
+  const songStats = {
+    total: songs.length,
+    approved: songs.filter((s) => s.is_approved).length,
+    pending: songs.filter((s) => !s.is_approved).length,
+    topSong: songs.length > 0 ? songs.reduce((a, b) => (a.votes > b.votes ? a : b)) : null,
+  };
 
   if (!isAuthenticated) {
     return (
@@ -360,12 +471,170 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* Songs Table — kept as placeholder for now */}
+        {/* Songs Management */}
         {activeTab === "songs" && (
-          <div className="glass p-6 overflow-x-auto">
-            <p className="text-burgundy/60 text-center py-8">
-              Próximamente — gestión de canciones.
-            </p>
+          <div className="space-y-6">
+            {/* Stats cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard label="Total Canciones" value={songStats.total} color="burgundy" />
+              <StatCard label="Aprobadas" value={songStats.approved} color="sage" />
+              <StatCard label="Pendientes" value={songStats.pending} color="gold" />
+              <div className="glass p-6 text-center">
+                <div className="text-body text-sm text-burgundy/60 uppercase tracking-wider mb-3">
+                  Más votada
+                </div>
+                <p className="text-burgundy font-medium text-sm truncate">
+                  {songStats.topSong
+                    ? `${songStats.topSong.title}`
+                    : "—"}
+                </p>
+                {songStats.topSong && (
+                  <p className="text-burgundy/40 text-xs">
+                    {songStats.topSong.votes} votos
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Songs table */}
+            <div className="glass p-6 overflow-x-auto">
+              {songsLoading ? (
+                <p className="text-burgundy/60 text-center py-8">
+                  Cargando canciones...
+                </p>
+              ) : songsError ? (
+                <div className="text-center py-8">
+                  <p className="text-rose mb-2">{songsError}</p>
+                  <button
+                    onClick={() => {
+                      setSongsError(null);
+                      setSongsLoading(true);
+                      fetch("/api/songs")
+                        .then((res) => res.json())
+                        .then((data) => setSongs(data.songs || []))
+                        .catch((err) => setSongsError(err.message))
+                        .finally(() => setSongsLoading(false));
+                    }}
+                    className="btn-outline text-sm"
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              ) : songs.length === 0 ? (
+                <p className="text-burgundy/60 text-center py-8">
+                  No hay canciones aún.
+                </p>
+              ) : (
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="border-b border-champagne">
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                        Video
+                      </th>
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                        Título
+                      </th>
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                        Artista
+                      </th>
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                        Votos
+                      </th>
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                        Estado
+                      </th>
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                        Agregado por
+                      </th>
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                        Fecha
+                      </th>
+                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                        Acciones
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {songs.map((song) => (
+                      <tr
+                        key={song.id}
+                        className="border-b border-champagne/30 hover:bg-champagne/10 transition-colors"
+                      >
+                        {/* Thumbnail */}
+                        <td className="py-3">
+                          {song.youtube_video_id ? (
+                            <a
+                              href={`https://www.youtube.com/watch?v=${song.youtube_video_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block w-20 h-12 rounded overflow-hidden"
+                            >
+                              <img
+                                src={`https://img.youtube.com/vi/${song.youtube_video_id}/default.jpg`}
+                                alt={song.title}
+                                className="w-full h-full object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <div className="w-20 h-12 rounded bg-burgundy/5 flex items-center justify-center">
+                              <span className="text-burgundy/20 text-xs">
+                                Sin video
+                              </span>
+                            </div>
+                          )}
+                        </td>
+
+                        <td className="py-3 text-burgundy font-medium text-sm">
+                          {song.title}
+                        </td>
+                        <td className="py-3 text-burgundy/60 text-sm">
+                          {song.artist}
+                        </td>
+                        <td className="py-3 text-burgundy text-center">
+                          <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-burgundy/5 text-sm font-medium">
+                            {song.votes}
+                          </span>
+                        </td>
+                        <td className="py-3 text-center">
+                          <SongStatusBadge isApproved={song.is_approved} />
+                        </td>
+                        <td className="py-3 text-burgundy/60 text-sm">
+                          {song.added_by}
+                        </td>
+                        <td className="py-3 text-burgundy/40 text-xs">
+                          {new Date(song.created_at).toLocaleDateString("es-MX", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </td>
+                        <td className="py-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => toggleApproval(song)}
+                              className={`p-1.5 rounded-full transition-all text-xs ${
+                                song.is_approved
+                                  ? "text-sage hover:bg-sage/10"
+                                  : "text-gold hover:bg-gold/10"
+                              }`}
+                              title={song.is_approved ? "Desaprobar" : "Aprobar"}
+                            >
+                              {song.is_approved ? "✓" : "○"}
+                            </button>
+                            <button
+                              onClick={() => deleteSong(song.id)}
+                              className="p-1.5 rounded-full text-rose/60 hover:text-rose hover:bg-rose/10 transition-all"
+                              title="Eliminar"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -430,6 +699,20 @@ function StatusBadge({ status }: { status: string }) {
       }`}
     >
       {labelMap[status] || status}
+    </span>
+  );
+}
+
+function SongStatusBadge({ isApproved }: { isApproved: boolean }) {
+  return (
+    <span
+      className={`inline-block px-3 py-1 rounded-full text-xs uppercase tracking-wider ${
+        isApproved
+          ? "bg-sage/20 text-sage"
+          : "bg-gold/20 text-gold"
+      }`}
+    >
+      {isApproved ? "Aprobada" : "Pendiente"}
     </span>
   );
 }

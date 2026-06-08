@@ -23,9 +23,8 @@ export const googleMapsConfig = {
   apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "",
 } as const;
 
-export const spotifyConfig = {
-  clientId: process.env.SPOTIFY_CLIENT_ID || "",
-  clientSecret: process.env.SPOTIFY_CLIENT_SECRET || "",
+export const youtubeConfig = {
+  apiKey: process.env.YOUTUBE_API_KEY || "",
 } as const;
 
 export const invitationCode =
@@ -42,8 +41,7 @@ export const isResendConfigured = resendConfig.apiKey !== "";
 
 export const isGoogleMapsConfigured = googleMapsConfig.apiKey !== "";
 
-export const isSpotifyConfigured =
-  spotifyConfig.clientId !== "" && spotifyConfig.clientSecret !== "";
+export const isYouTubeConfigured = youtubeConfig.apiKey !== "";
 
 export const cloudinaryConfig = {
   cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "",

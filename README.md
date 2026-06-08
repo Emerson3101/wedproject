@@ -11,7 +11,7 @@ Sitio web elegante de bodas con diseño **glassmorphism**, animaciones fluidas y
 | Animaciones | **Framer Motion** + **GSAP** ScrollTrigger |
 | Base de datos | **Supabase** (PostgreSQL + RLS + Realtime) |
 | Emails | **Resend** |
-| Música | **Spotify Web API** |
+| Música | **YouTube Data API v3** |
 | Mapas | **Google Maps Embed API** |
 | Deploy | **Vercel** |
 
@@ -24,7 +24,7 @@ Sitio web elegante de bodas con diseño **glassmorphism**, animaciones fluidas y
 5. **Código de Vestimenta** — Paleta de colores y recomendaciones
 6. **Ubicación** — Google Maps con estilos personalizados
 7. **RSVP** — Formulario con acompañantes dinámicos
-8. **Playlist** — Búsqueda Spotify + sistema de votos
+8. **Playlist** — Búsqueda YouTube + reproductor embebido + sistema de votos
 
 ## 🎨 Sistema de Diseño
 
@@ -53,7 +53,7 @@ src/
 │   ├── api/
 │   │   ├── rsvp/route.ts       # API de confirmación
 │   │   ├── songs/route.ts      # API de canciones
-│   │   └── spotify/search/     # Búsqueda Spotify
+│   │   └── youtube/search/     # Búsqueda YouTube
 │   ├── admin/page.tsx          # Panel admin
 │   ├── globals.css             # Sistema de diseño
 │   ├── layout.tsx              # Layout raíz + fuentes
@@ -101,8 +101,7 @@ npm run build
 | `SUPABASE_SERVICE_ROLE_KEY` | Clave de servicio (server-side) |
 | `RESEND_API_KEY` | API key de Resend para emails |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | API key de Google Maps |
-| `SPOTIFY_CLIENT_ID` | Client ID de Spotify |
-| `SPOTIFY_CLIENT_SECRET` | Client Secret de Spotify |
+| `YOUTUBE_API_KEY` | API key de YouTube Data API v3 |
 
 ## 📊 Base de Datos
 
