@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Users, Utensils, MessageSquare, Send, CheckCircle } from "lucide-react";
 import SectionTitle from "@/components/shared/SectionTitle";
 import GlassCard from "@/components/ui/GlassCard";
+import InvitationCard from "@/components/sections/InvitationCard";
 
 /* ============================================
    RSVP — Formulario de Confirmación
@@ -28,6 +29,21 @@ export default function RSVPSection() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState("");
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to success message when form is submitted
+  useEffect(() => {
+    if (isSubmitted && sectionRef.current) {
+      // Small delay lets the DOM render the success screen before scrolling
+      const timer = setTimeout(() => {
+        sectionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSubmitted]);
 
   const addCompanion = () => {
     if (formData.numCompanions < 5) {
@@ -110,14 +126,14 @@ export default function RSVPSection() {
   if (isSubmitted) {
     return (
       <section id="rsvp" className="section-padding relative z-20">
-        <div className="max-w-2xl mx-auto">
+        <div ref={sectionRef} className="max-w-2xl mx-auto">
           <SectionTitle ornament="✦" title="¡Gracias!" />
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <GlassCard className="text-center py-12">
+            <GlassCard className="text-center py-12 space-y-8">
               <CheckCircle className="mx-auto text-sage mb-6" size={48} />
               <h3 className="text-display text-3xl text-burgundy mb-4">
                 ¡Confirmación Recibida!
@@ -127,6 +143,18 @@ export default function RSVPSection() {
                 <br />
                 ¡Estamos ansiosos por celebrar contigo!
               </p>
+
+              <div className="pt-4">
+                <InvitationCard
+                  guestName={formData.name}
+                  guestEmail={formData.email}
+                  guestPhone={formData.phone}
+                  status={formData.status}
+                  numCompanions={formData.numCompanions}
+                  companions={formData.companions}
+                  dietary={formData.dietary}
+                />
+              </div>
             </GlassCard>
           </motion.div>
         </div>
@@ -140,7 +168,7 @@ export default function RSVPSection() {
         <SectionTitle
           ornament="❦"
           title="Confirma tu Asistencia"
-          subtitle="Por favor confirma antes del 1 de septiembre, 2025"
+          subtitle="Por favor confirma antes del 1 de septiembre, 2026"
         />
 
         <motion.form

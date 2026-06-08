@@ -3,8 +3,8 @@
    ============================================ */
 
 export const siteConfig = {
-  name: "Emerson & Plancarte",
-  tagline: "Nuestra Boda",
+  name: "Alma & Chava",
+  tagline: "Boda de plata",
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
 } as const;
 
@@ -44,3 +44,14 @@ export const isGoogleMapsConfigured = googleMapsConfig.apiKey !== "";
 
 export const isSpotifyConfigured =
   spotifyConfig.clientId !== "" && spotifyConfig.clientSecret !== "";
+
+export const cloudinaryConfig = {
+  cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "",
+  uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "",
+} as const;
+
+export const googlePhotosConfig = {
+  albumUrl:
+    process.env.NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL ||
+    "https://photos.app.goo.gl/QAvUYFHzY6XZTfAC9",
+} as const;

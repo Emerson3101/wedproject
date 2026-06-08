@@ -1,22 +1,44 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 /* ============================================
    ADMIN PANEL — Panel de Administración
    Acceso: /admin (protegido con password básico)
    ============================================ */
 
-interface GuestRow {
+interface GuestData {
   id: string;
   name: string;
   email: string;
-  phone?: string;
+  phone?: string | null;
   status: string;
   num_companions: number;
-  message?: string;
-  dietary_restrictions?: string;
+  message?: string | null;
+  dietary_restrictions?: string | null;
+  side?: string | null;
   created_at: string;
+}
+
+interface CompanionData {
+  id: string;
+  guest_id: string;
+  name: string;
+  dietary_restrictions?: string | null;
+  created_at: string;
+}
+
+interface GuestWithCompanions {
+  guest: GuestData;
+  companions: CompanionData[];
+}
+
+interface Stats {
+  total: number;
+  confirmed: number;
+  declined: number;
+  pending: number;
+  totalCompanions: number;
 }
 
 interface SongRow {
@@ -34,77 +56,96 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "guests" | "songs">(
     "dashboard"
   );
-  const [guests, setGuests] = useState<GuestRow[]>([]);
+  const [guests, setGuests] = useState<GuestWithCompanions[]>([]);
   const [songs, setSongs] = useState<SongRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     total: 0,
     confirmed: 0,
     declined: 0,
     pending: 0,
     totalCompanions: 0,
   });
+  const [apiError, setApiError] = useState<string | null>(null);
+  // Track which guest rows are expanded
+  const [expandedGuests, setExpandedGuests] = useState<Set<string>>(new Set());
 
   // Autenticación básica
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // En producción, usar autenticación real
-    if (password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD || password === "boda2025") {
+    if (
+      password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD ||
+      password === "boda2025"
+    ) {
       setIsAuthenticated(true);
     } else {
       alert("Contraseña incorrecta");
     }
   };
 
-  // Cargar datos desde APIs
+  // Toggle expansion of a guest row to see companions
+  const toggleGuest = (guestId: string) => {
+    setExpandedGuests((prev) => {
+      const next = new Set(prev);
+      if (next.has(guestId)) {
+        next.delete(guestId);
+      } else {
+        next.add(guestId);
+      }
+      return next;
+    });
+  };
+
+  // Cargar datos desde la API admin
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // En producción, cargar desde endpoints admin
-    // Por ahora, datos simulados
-    setGuests([
-      {
-        id: "1",
-        name: "Ana García",
-        email: "ana@email.com",
-        status: "confirmed",
-        num_companions: 2,
-        message: "¡Felicitaciones!",
-        created_at: "2025-08-01T10:00:00Z",
-      },
-      {
-        id: "2",
-        name: "Carlos López",
-        email: "carlos@email.com",
-        status: "confirmed",
-        num_companions: 1,
-        created_at: "2025-08-02T12:00:00Z",
-      },
-      {
-        id: "3",
-        name: "María Torres",
-        email: "maria@email.com",
-        status: "declined",
-        num_companions: 0,
-        created_at: "2025-08-03T14:00:00Z",
-      },
-    ]);
+    let cancelled = false;
 
-    setSongs([
-      { id: "1", title: "Perfect", artist: "Ed Sheeran", votes: 12, is_approved: true, added_by: "Ana" },
-      { id: "2", title: "All of Me", artist: "John Legend", votes: 9, is_approved: true, added_by: "Carlos" },
-      { id: "3", title: "Thinking Out Loud", artist: "Ed Sheeran", votes: 7, is_approved: false, added_by: "María" },
-    ]);
+    const fetchData = async () => {
+      setLoading(true);
+      setApiError(null);
 
-    setStats({
-      total: 3,
-      confirmed: 2,
-      declined: 1,
-      pending: 0,
-      totalCompanions: 3,
-    });
+      try {
+        // Fetch guests with companions
+        const guestsRes = await fetch("/api/admin/guests");
+        const guestsData = await guestsRes.json();
 
-    setLoading(false);
+        if (!guestsData.ok || !guestsRes.ok) {
+          throw new Error(
+            guestsData.error || `API returned status ${guestsRes.status}`
+          );
+        }
+
+        if (!cancelled) {
+          setGuests(guestsData.guests || []);
+          setStats(guestsData.stats || {
+            total: 0,
+            confirmed: 0,
+            declined: 0,
+            pending: 0,
+            totalCompanions: 0,
+          });
+        }
+      } catch (err) {
+        console.error("Error loading admin data:", err);
+        if (!cancelled) {
+          setApiError(
+            err instanceof Error ? err.message : "Error cargando los datos"
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated]);
 
   if (!isAuthenticated) {
@@ -142,10 +183,7 @@ export default function AdminPage() {
           <h1 className="text-display text-4xl text-burgundy">
             Panel de Administración
           </h1>
-          <a
-            href="/"
-            className="btn-outline text-sm"
-          >
+          <a href="/" className="btn-outline text-sm">
             Ver Sitio
           </a>
         </div>
@@ -162,7 +200,11 @@ export default function AdminPage() {
                   : "glass-subtle text-burgundy/60 hover:text-burgundy"
               }`}
             >
-              {tab === "dashboard" ? "Dashboard" : tab === "guests" ? "Invitados" : "Canciones"}
+              {tab === "dashboard"
+                ? "Dashboard"
+                : tab === "guests"
+                  ? "Invitados"
+                  : "Canciones"}
             </button>
           ))}
         </div>
@@ -174,75 +216,156 @@ export default function AdminPage() {
             <StatCard label="Confirmados" value={stats.confirmed} color="sage" />
             <StatCard label="Declinaron" value={stats.declined} color="rose" />
             <StatCard label="Pendientes" value={stats.pending} color="gold" />
-            <StatCard label="Acompañantes" value={stats.totalCompanions} color="champagne" />
+            <StatCard
+              label="Acompañantes"
+              value={stats.totalCompanions}
+              color="champagne"
+            />
           </div>
         )}
 
         {/* Guests Table */}
         {activeTab === "guests" && (
           <div className="glass p-6 overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-champagne">
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Nombre</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Email</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Estado</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Acompañantes</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Mensaje</th>
-                </tr>
-              </thead>
-              <tbody>
-                {guests.map((guest) => (
-                  <tr key={guest.id} className="border-b border-champagne/30">
-                    <td className="py-3 text-burgundy">{guest.name}</td>
-                    <td className="py-3 text-burgundy/60 text-sm">{guest.email}</td>
-                    <td className="py-3">
-                      <StatusBadge status={guest.status} />
-                    </td>
-                    <td className="py-3 text-burgundy text-center">
-                      {guest.num_companions}
-                    </td>
-                    <td className="py-3 text-burgundy/60 text-sm italic max-w-xs truncate">
-                      {guest.message || "—"}
-                    </td>
+            {loading ? (
+              <p className="text-burgundy/60 text-center py-8">
+                Cargando invitados...
+              </p>
+            ) : apiError ? (
+              <div className="text-center py-8">
+                <p className="text-rose mb-2">{apiError}</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="btn-outline text-sm"
+                >
+                  Reintentar
+                </button>
+              </div>
+            ) : guests.length === 0 ? (
+              <p className="text-burgundy/60 text-center py-8">
+                No hay invitados registrados aún.
+              </p>
+            ) : (
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-champagne">
+                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      Nombre
+                    </th>
+                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      Teléfono
+                    </th>
+                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      Estado
+                    </th>
+                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                      Acompañantes
+                    </th>
+                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      Mensaje
+                    </th>
+                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      Fecha
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {guests.map(({ guest, companions }) => (
+                    <React.Fragment key={guest.id}>
+                      <tr
+                        className="border-b border-champagne/30 cursor-pointer hover:bg-champagne/10 transition-colors"
+                        onClick={() => toggleGuest(guest.id)}
+                      >
+                        <td className="py-3 text-burgundy font-medium">
+                          {guest.name}
+                        </td>
+                        <td className="py-3 text-burgundy/60 text-sm">
+                          {guest.email}
+                        </td>
+                        <td className="py-3 text-burgundy/60 text-sm">
+                          {guest.phone || "—"}
+                        </td>
+                        <td className="py-3">
+                          <StatusBadge status={guest.status} />
+                        </td>
+                        <td className="py-3 text-burgundy text-center">
+                          <span
+                            className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
+                              companions.length > 0
+                                ? "bg-sage/20 text-sage"
+                                : "text-burgundy/30"
+                            }`}
+                          >
+                            {companions.length}
+                          </span>
+                        </td>
+                        <td className="py-3 text-burgundy/60 text-sm italic max-w-xs truncate">
+                          {guest.message || "—"}
+                        </td>
+                        <td className="py-3 text-burgundy/40 text-xs">
+                          {new Date(guest.created_at).toLocaleDateString("es-MX", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </td>
+                      </tr>
+                      {/* Expanded companions row */}
+                      {expandedGuests.has(guest.id) && (
+                        <tr key={`${guest.id}-companions`}>
+                          <td colSpan={7} className="py-0 px-6">
+                            <div className="bg-champagne/10 rounded-lg p-4 ml-4 mt-1 mb-2">
+                              <p className="text-xs uppercase tracking-wider text-burgundy/50 mb-3 font-medium">
+                                Acompañantes de {guest.name}
+                              </p>
+                              {companions.length === 0 ? (
+                                <p className="text-burgundy/40 text-sm italic">
+                                  Sin acompañantes registrados
+                                </p>
+                              ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {companions.map((companion) => (
+                                    <div
+                                      key={companion.id}
+                                      className="flex items-center gap-3 bg-white/40 rounded-lg px-3 py-2"
+                                    >
+                                      <div className="w-8 h-8 rounded-full bg-sage/20 flex items-center justify-center text-sage text-xs font-medium flex-shrink-0">
+                                        {companion.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <div className="min-w-0">
+                                        <p className="text-burgundy text-sm font-medium truncate">
+                                          {companion.name}
+                                        </p>
+                                        {companion.dietary_restrictions && (
+                                          <p className="text-burgundy/40 text-xs truncate">
+                                            🍽 {companion.dietary_restrictions}
+                                          </p>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         )}
 
-        {/* Songs Table */}
+        {/* Songs Table — kept as placeholder for now */}
         {activeTab === "songs" && (
           <div className="glass p-6 overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="border-b border-champagne">
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Canción</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Artista</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Votos</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Agregado por</th>
-                  <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">Aprobada</th>
-                </tr>
-              </thead>
-              <tbody>
-                {songs.map((song) => (
-                  <tr key={song.id} className="border-b border-champagne/30">
-                    <td className="py-3 text-burgundy">{song.title}</td>
-                    <td className="py-3 text-burgundy/60 text-sm">{song.artist}</td>
-                    <td className="py-3 text-burgundy text-center">{song.votes}</td>
-                    <td className="py-3 text-burgundy/60 text-sm">{song.added_by}</td>
-                    <td className="py-3 text-center">
-                      {song.is_approved ? (
-                        <span className="text-sage">✓</span>
-                      ) : (
-                        <span className="text-burgundy/30">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <p className="text-burgundy/60 text-center py-8">
+              Próximamente — gestión de canciones.
+            </p>
           </div>
         )}
       </div>

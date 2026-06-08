@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['192.168.1.9'],
   // Optimización de imágenes
   images: {
     formats: ["image/avif", "image/webp"],
@@ -12,6 +13,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "*.supabase.co", // Supabase storage
+      },
+      {
+        protocol: "https",
+        hostname: "*.res.cloudinary.com", // Cloudinary uploaded photos
       },
     ],
   },

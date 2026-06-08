@@ -12,6 +12,7 @@ import DressCodeSection from "@/components/sections/DressCodeSection";
 import LocationSection from "@/components/sections/LocationSection";
 import RSVPSection from "@/components/sections/RSVPSection";
 import PlaylistSection from "@/components/sections/PlaylistSection";
+import PhotoUploadSection from "@/components/sections/PhotoUploadSection";
 
 /* ============================================
    PÁGINA PRINCIPAL — Sitio Web de Boda
@@ -36,6 +37,7 @@ export default function Home() {
       <StorySection />
       <DressCodeSection />
       <LocationSection />
+      <PhotoUploadSection />
       <RSVPSection />
       <PlaylistSection />
 

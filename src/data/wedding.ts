@@ -9,13 +9,13 @@ export const couple = {
   displayName: "A & C",
 } as const;
 
-export const weddingDate = new Date("2025-10-18T16:00:00");
+export const weddingDate = new Date("2026-10-18T16:00:00");
 
 export const weddingDetails = {
   ceremony: {
     name: "Ceremonia",
     time: "4:00 PM",
-    date: "18 de Octubre, 2025",
+    date: "18 de Octubre, 2026",
     location: "Iglesia Santa María",
     address: "Av. Principal #123, Ciudad de México",
     coordinates: { lat: 19.4326, lng: -99.1332 },
@@ -23,7 +23,7 @@ export const weddingDetails = {
   reception: {
     name: "Recepción",
     time: "7:00 PM",
-    date: "18 de Octubre, 2025",
+    date: "18 de Octubre, 2026",
     location: "Salón Jardines del Parque",
     address: "Calle de los Jardines #456, Ciudad de México",
     coordinates: { lat: 19.4326, lng: -99.1332 },
@@ -60,8 +60,8 @@ export const ourStory = [
     icon: "ring",
   },
   {
-    year: "2025",
-    title: "¡Nos Casamos!",
+    year: "2026",
+    title: "¡Boda de plata!",
     description:
       "El día más esperado llega. ¡Únete a nosotros para celebrar este gran momento!",
     icon: "church",
@@ -107,6 +107,7 @@ export const navigation = [
   { label: "Historia", href: "#story" },
   { label: "Vestimenta", href: "#dresscode" },
   { label: "Ubicación", href: "#location" },
+  { label: "Fotos", href: "#photos" },
   { label: "RSVP", href: "#rsvp" },
   { label: "Playlist", href: "#playlist" },
 ] as const;

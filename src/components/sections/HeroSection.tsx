@@ -33,7 +33,7 @@ export default function HeroSection() {
           transition={{ duration: 1, delay: 0.2 }}
           className="text-script text-gold text-4xl md:text-5xl mb-6"
         >
-          ¡Nos Casamos!
+          ¡Boda de plata!
         </motion.div>
 
         {/* Nombres */}
