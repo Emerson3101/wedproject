@@ -36,23 +36,23 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://wedding.example.com"
   ),
   title: {
-    default: "Emerson & Plancarte — Nuestra Boda",
-    template: "%s | Emerson & Plancarte",
+    default: "Alma & Chava — Nuestra Boda",
+    template: "%s | Alma & Chava",
   },
   description:
-    "¡Estás invitado a celebrar nuestro gran día! Descubre todos los detalles de la boda de Emerson y Plancarte el 18 de Octubre, 2026.",
+    "¡Estás invitado a celebrar nuestro gran día! Descubre todos los detalles de la boda de Alma y Chava el 18 de Octubre, 2026.",
   keywords: [
     "boda",
     "invitación",
     "matrimonio",
     "wedding",
-    "Emerson",
-    "Plancarte",
+    "Alma",
+    "Chava",
     "RSVP",
   ],
-  authors: [{ name: "Emerson & Plancarte" }],
-  creator: "Emerson & Plancarte",
-  publisher: "Emerson & Plancarte",
+  authors: [{ name: "Alma & Chava" }],
+  creator: "Alma & Chava",
+  publisher: "Alma & Chava",
   robots: {
     index: true,
     follow: true,
@@ -64,15 +64,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_MX",
-    siteName: "Emerson & Plancarte — Boda",
-    title: "Emerson & Plancarte — Nuestra Boda",
+    siteName: "Alma & Chava — Boda",
+    title: "Alma & Chava — Nuestra Boda",
     description:
       "Únete a nosotros para celebrar nuestro amor. 18 de Octubre, 2026.",
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Emerson & Plancarte — Nuestra Boda",
+    title: "Alma & Chava — Nuestra Boda",
     description:
       "Únete a nosotros para celebrar nuestro amor. 18 de Octubre, 2026.",
   },
@@ -85,7 +85,7 @@ export const metadata: Metadata = {
     "application/ld+json": JSON.stringify({
       "@context": "https://schema.org",
       "@type": "Event",
-      name: "Boda de Emerson y Plancarte",
+      name: "Boda de Alma y Chava",
       eventType: "Wedding",
       startDate: "2026-10-18T16:00:00-06:00",
       endDate: "2026-10-18T23:59:00-06:00",
@@ -103,7 +103,7 @@ export const metadata: Metadata = {
       },
       organizer: {
         "@type": "Person",
-        name: "Emerson & Plancarte",
+        name: "Alma & Chava",
       },
     }),
   },

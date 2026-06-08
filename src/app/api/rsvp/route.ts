@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
       const companionsPayload =
         companions && companions.length > 0
           ? companions.map((c) => ({
-              name: c.name,
-              dietary_restrictions: c.dietary || null,
-            }))
+            name: c.name,
+            dietary_restrictions: c.dietary || null,
+          }))
           : [];
 
       const { error: rsvpError } = await supabase.rpc("submit_rsvp", {
@@ -161,7 +161,7 @@ async function sendConfirmationEmail(name: string, email: string) {
             <strong>Recepción:</strong> 7:00 PM — Salón Jardines del Parque
           </p>
           <p style="font-size: 24px; color: #C5A55A; margin-top: 32px;">
-            Emerson & Plancarte
+            Alma & Chava
           </p>
         </div>
       </div>
