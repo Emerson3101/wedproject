@@ -21,17 +21,18 @@ import PhotoUploadSection from "@/components/sections/PhotoUploadSection";
 /* ============================================
    PÁGINA PRINCIPAL — Sitio Web de Boda
 
-   Muestra un skeleton estructurado durante la carga
-   inicial de JavaScript, luego transiciona suavemente
-   al contenido real con animaciones.
+   El contenido real se renderiza siempre visible
+   para que GSAP/ScrollTrigger calculen posiciones
+   correctas desde el inicio. PageSkeleton se muestra
+   como overlay que se desvanece.
    ============================================ */
 export default function Home() {
   const [isPageReady, setIsPageReady] = useState(false);
 
   useEffect(() => {
-    // Marcar la página como lista después de un breve delay
-    // para que los módulos de animación (GSAP, framer-motion)
-    // estén listos y no haya flash de contenido invisible
+    // Breve delay para que los módulos de animación
+    // (GSAP, framer-motion) se inicialicen antes de
+    // que el overlay se desvanezca
     const timer = setTimeout(() => {
       setIsPageReady(true);
     }, 100);
@@ -41,39 +42,39 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden w-full">
-      {/* Skeleton durante carga inicial */}
-      {!isPageReady && <PageSkeleton />}
-
-      {/* Contenido real con transición suave */}
+      {/* Skeleton overlay — se desvanece al estar listo */}
       <div
-        className={`transition-opacity duration-700 ${
-          isPageReady ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`fixed inset-0 z-50 overflow-auto transition-opacity duration-500 ${
+          isPageReady ? "pointer-events-none opacity-0" : "opacity-100"
         }`}
       >
-        {/* Fondos animados — globales */}
-        <BokehBackground />
-        <FloatingPetals />
-
-        {/* Animaciones GSAP globales */}
-        <PageAnimations />
-
-        {/* Navegación */}
-        <Navigation />
-
-        {/* Secciones */}
-        <HeroSection />
-        <CountdownSection />
-        <DetailsSection />
-        <StorySection />
-        <DressCodeSection />
-        <LocationSection />
-        <PhotoUploadSection />
-        <RSVPSection />
-        <PlaylistSection />
-
-        {/* Footer */}
-        <Footer />
+        <PageSkeleton />
       </div>
+
+      {/* Contenido real — siempre visible para GSAP/ScrollTrigger */}
+      {/* Fondos animados — globales */}
+      <BokehBackground />
+      <FloatingPetals />
+
+      {/* Animaciones GSAP globales */}
+      <PageAnimations />
+
+      {/* Navegación */}
+      <Navigation />
+
+      {/* Secciones */}
+      <HeroSection />
+      <CountdownSection />
+      <DetailsSection />
+      <StorySection />
+      <DressCodeSection />
+      <LocationSection />
+      <PhotoUploadSection />
+      <RSVPSection />
+      <PlaylistSection />
+
+      {/* Footer */}
+      <Footer />
     </main>
   );
 }
