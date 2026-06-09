@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import SectionTitle from "@/components/shared/SectionTitle";
 import GlassCard from "@/components/ui/GlassCard";
+import { SkeletonCard } from "@/components/shared/Skeleton";
 import { debounce } from "@/lib/utils";
 
 /* ============================================
@@ -549,11 +550,10 @@ export default function PlaylistSection() {
 
         {/* Lista de Canciones */}
         {loading ? (
-          <div className="text-center py-8">
-            <Loader2 size={24} className="text-gold animate-spin mx-auto" />
-            <p className="text-body text-burgundy/40 mt-3">
-              Cargando playlist...
-            </p>
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonCard key={i} variant="song" />
+            ))}
           </div>
         ) : (
           <div className="space-y-3">

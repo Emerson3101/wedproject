@@ -1,21 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { couple, weddingDate } from "@/data/wedding";
 
 /* ============================================
    HERO — Portada Full-Screen
+   Se renderiza inmediatamente sin guard de montaje.
+   Framer-motion maneja la animación de entrada.
    ============================================ */
 export default function HeroSection() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
-
   return (
     <section
       id="hero"
@@ -30,7 +23,7 @@ export default function HeroSection() {
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.2 }}
+          transition={{ duration: 0.8, delay: 0.1 }}
           className="text-script text-gold text-4xl md:text-5xl mb-6"
         >
           ¡Boda de plata!
@@ -40,7 +33,7 @@ export default function HeroSection() {
         <motion.h1
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
           className="text-display text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-light text-burgundy leading-tight mb-4"
         >
           {couple.name1}
@@ -49,7 +42,7 @@ export default function HeroSection() {
         <motion.span
           initial={{ opacity: 0, scale: 0.5 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 1 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
           className="text-script text-gold text-5xl md:text-6xl block mb-4"
         >
           &
@@ -58,7 +51,7 @@ export default function HeroSection() {
         <motion.h1
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.8 }}
+          transition={{ duration: 0.8, delay: 0.35 }}
           className="text-display text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-light text-burgundy leading-tight mb-8"
         >
           {couple.name2}
@@ -68,7 +61,7 @@ export default function HeroSection() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 1.3 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
           className="mt-8"
         >
           <div className="ornament-line max-w-xs mx-auto mb-6">
@@ -87,7 +80,7 @@ export default function HeroSection() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 2 }}
+          transition={{ duration: 0.8, delay: 1 }}
           className="mt-16"
         >
           <motion.div

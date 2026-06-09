@@ -57,10 +57,12 @@ wedproject/
 │   │   │   ├── Navigation.tsx          # Fixed top nav with mobile hamburger menu
 │   │   │   ├── Footer.tsx              # Footer with couple names, quote, hashtag
 │   │   │   ├── SectionTitle.tsx        # Section heading with ornament decoration
-│   │   │   ├── PageAnimations.tsx      # Global GSAP animations (scroll reveal, parallax)
+│   │   │   ├── PageAnimations.tsx      # Global GSAP animations (parallax only, no opacity hiding)
 │   │   │   ├── FloatingPetals.tsx      # Animated falling petal background particles
 │   │   │   ├── BokehBackground.tsx     # Bokeh light background effect
-│   │   │   └── GoogleMapEmbed.tsx      # Google Maps embed wrapper
+│   │   │   ├── GoogleMapEmbed.tsx      # Google Maps embed wrapper
+│   │   │   ├── Skeleton.tsx            # Reusable shimmer skeleton placeholder + SkeletonText, SkeletonCard
+│   │   │   └── PageSkeleton.tsx        # Full-page skeleton mirror (shown during initial JS load)
 │   │   │
 │   │   └── ui/                     # Base UI primitives
 │   │       └── GlassCard.tsx             # Glassmorphism card (default/strong/subtle)
@@ -127,7 +129,7 @@ Environment-driven feature toggles:
 | 6  | LocationSection    | `#location`   | Venue cards, Google Maps links, embedded map      |
 | 7  | PhotoUploadSection | `#photos`     | Cloudinary upload widget + Google Photos album    |
 | 8  | RSVPSection        | `#rsvp`       | Full RSVP form, companions, dietary, messaging    |
-| 9  | PlaylistSection    | `#playlist`   | YouTube search, embedded player, manual add, vote on songs |
+| 9  | PlaylistSection    | `#playlist`   | YouTube search, embedded player, manual add, vote on songs, skeleton loading |
 
 ## API Endpoints
 
@@ -166,8 +168,8 @@ Three variants via CSS classes: `.glass`, `.glass-strong`, `.glass-subtle` — a
 
 ### Animations
 - **Framer Motion** — Section reveals, card hover effects, button micro-interactions
-- **GSAP + ScrollTrigger** — Scroll-based reveals, parallax on hero, timeline animations
-- **CSS keyframes** — `gradientShift` (background), `float` (decorative), `petalFall` (petals), `shimmer` (gold accents)
+- **GSAP + ScrollTrigger** — Parallax on hero, timeline animations (no longer sets `opacity: 0` on sections)
+- **CSS keyframes** — `gradientShift` (background), `float` (decorative), `petalFall` (petals), `shimmer` (gold accents), `skeletonShimmer` (loading placeholders)
 
 ## Environment Variables
 
@@ -197,6 +199,7 @@ npm run lint     # Run ESLint
 
 - All sections use `"use client"` (client components) for interactivity
 - GSAP is dynamically imported (`import("gsap")`) to avoid SSR issues
+- **Loading strategy** — `PageSkeleton` mirrors the real layout during initial JS load (100ms), then crossfades via opacity transition. Sections are visible by default (`section { opacity: 1 !important }`) so GSAP never hides already-rendered content. HeroSection renders immediately (no `mounted` guard). PlaylistSection shows skeleton cards while fetching song data.
 - The countdown target date is **October 18, 2026** (configured in `src/data/wedding.ts`)
 - The site is in Spanish (`lang="es"`) with `es-ES` locale for date formatting
 - Admin panel is accessible at `/admin` (password-protected)

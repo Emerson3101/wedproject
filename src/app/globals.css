@@ -186,6 +186,11 @@ body {
   100% { background-position: 200% center; }
 }
 
+@keyframes skeletonShimmer {
+  0% { background-position: -300% 0; }
+  100% { background-position: 300% 0; }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
@@ -201,12 +206,32 @@ body {
   animation: shimmer 3s infinite;
 }
 
+/* Skeleton shimmer — efecto de brillo suave sobre champagne */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(247, 231, 206, 0.25) 0%,
+    rgba(247, 231, 206, 0.55) 25%,
+    rgba(247, 231, 206, 0.70) 50%,
+    rgba(247, 231, 206, 0.55) 75%,
+    rgba(247, 231, 206, 0.25) 100%
+  );
+  background-size: 300% 100%;
+  animation: skeletonShimmer 2s ease-in-out infinite;
+}
+
 /* ============================================
    SECCIONES
    ============================================ */
 .section-padding {
   padding: 5rem 1rem;
   scroll-margin-top: 5.5rem;
+}
+
+/* Asegurar que secciones sean visibles antes de que JS cargue
+   GSAP y framer-motion mejoran la entrada pero no deben ocultar contenido */
+section {
+  opacity: 1 !important;
 }
 
 @media (min-width: 768px) {
