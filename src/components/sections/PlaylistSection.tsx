@@ -76,6 +76,17 @@ export default function PlaylistSection() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const searchResultsRef = useRef<HTMLDivElement>(null);
 
+  // Generar/obtener un voter_id persistente por navegador
+  const getVoterId = useCallback(() => {
+    if (typeof window === "undefined") return "";
+    let voterId = localStorage.getItem("wedding_voter_id");
+    if (!voterId) {
+      voterId = "voter_" + crypto.randomUUID();
+      localStorage.setItem("wedding_voter_id", voterId);
+    }
+    return voterId;
+  }, []);
+
   // Cargar canciones desde el backend al montar
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +94,8 @@ export default function PlaylistSection() {
     const fetchSongs = async () => {
       setLoading(true);
       try {
-        const res = await fetch("/api/songs");
+        const voterId = getVoterId();
+        const res = await fetch(`/api/songs?voterId=${encodeURIComponent(voterId)}`);
         const data = (await res.json()) as { songs: Record<string, unknown>[] };
         if (!cancelled && data.songs) {
           setSongs(
@@ -95,7 +107,7 @@ export default function PlaylistSection() {
               thumbnail_url: String(s.thumbnail_url || ""),
               votes: Number(s.votes) || 0,
               addedBy: String(s.added_by || "Guest"),
-              isVoted: false,
+              isVoted: Boolean(s.isLikedByVoter),
             }))
           );
         }
@@ -110,7 +122,7 @@ export default function PlaylistSection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [getVoterId]);
 
   // Cerrar resultados al hacer clic fuera
   useEffect(() => {
@@ -192,7 +204,8 @@ export default function PlaylistSection() {
 
   const refreshSongs = async () => {
     try {
-      const res = await fetch("/api/songs");
+      const voterId = getVoterId();
+      const res = await fetch(`/api/songs?voterId=${encodeURIComponent(voterId)}`);
       const data = (await res.json()) as { songs: Record<string, unknown>[] };
       if (data.songs) {
         setSongs(
@@ -204,7 +217,7 @@ export default function PlaylistSection() {
             thumbnail_url: String(s.thumbnail_url || ""),
             votes: Number(s.votes) || 0,
             addedBy: String(s.added_by || "Guest"),
-            isVoted: false,
+            isVoted: Boolean(s.isLikedByVoter),
           }))
         );
       }
@@ -214,7 +227,8 @@ export default function PlaylistSection() {
   };
 
   const handleVote = async (song: SongEntry) => {
-    const delta = song.isVoted ? -1 : 1;
+    const voterId = getVoterId();
+    const isLike = !song.isVoted;
 
     // Optimistic update
     setSongs((prev) =>
@@ -222,35 +236,38 @@ export default function PlaylistSection() {
         s.id === song.id
           ? {
               ...s,
-              votes: s.votes + delta,
-              isVoted: !s.isVoted,
+              votes: isLike ? s.votes + 1 : Math.max(0, s.votes - 1),
+              isVoted: isLike,
             }
           : s
       )
     );
 
-    // Enviar voto al backend
+    // Enviar like/unlike al backend
     try {
-      await fetch("/api/songs", {
+      const res = await fetch("/api/songs", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           songId: song.id,
-          delta,
+          voterId,
+          isLike,
         }),
       });
-      // Refrescar para sincronizar
+      const data = (await res.json()) as { liked?: boolean };
+
+      // Refrescar para sincronizar con el estado real del servidor
       await refreshSongs();
     } catch (err) {
-      console.error("Vote error:", err);
+      console.error("Like error:", err);
       // Revertir si falla
       setSongs((prev) =>
         prev.map((s) =>
           s.id === song.id
             ? {
                 ...s,
-                votes: s.votes - delta,
-                isVoted: !s.isVoted,
+                votes: isLike ? s.votes - 1 : s.votes + 1,
+                isVoted: !isLike,
               }
             : s
         )

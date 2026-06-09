@@ -253,3 +253,101 @@ BEGIN
   WHERE id = p_song_id;
 END;
 $$;
+
+-- ============================================
+-- 8. TABLA: song_likes (One like per song per browser)
+-- ============================================
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_name = 'song_likes'
+  ) THEN
+    CREATE TABLE song_likes (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      voter_id VARCHAR(64) NOT NULL,
+      song_id UUID NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CONSTRAINT song_likes_voter_song_unique UNIQUE (voter_id, song_id)
+    );
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_song_likes_song_id ON song_likes(song_id);
+CREATE INDEX IF NOT EXISTS idx_song_likes_voter_id ON song_likes(voter_id);
+
+ALTER TABLE song_likes ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view song_likes" ON song_likes;
+DROP POLICY IF EXISTS "Anyone can like songs" ON song_likes;
+DROP POLICY IF EXISTS "Service role can manage song_likes" ON song_likes;
+
+CREATE POLICY "Anyone can view song_likes"
+  ON song_likes FOR SELECT
+  USING (TRUE);
+
+CREATE POLICY "Anyone can like songs"
+  ON song_likes FOR INSERT
+  WITH CHECK (TRUE);
+
+CREATE POLICY "Service role can manage song_likes"
+  ON song_likes FOR ALL
+  USING (TRUE);
+
+-- ============================================
+-- 9. FUNCIONES: Like / Unlike (one like per song per browser)
+-- ============================================
+
+-- Like a song: inserts a row if voter hasn't liked it yet, bumps vote count
+-- Returns 'liked' on success, 'already_liked' if duplicate
+CREATE OR REPLACE FUNCTION like_song(p_voter_id VARCHAR, p_song_id UUID)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  INSERT INTO song_likes (voter_id, song_id)
+  VALUES (p_voter_id, p_song_id);
+
+  UPDATE songs SET votes = votes + 1 WHERE id = p_song_id;
+
+  RETURN 'liked';
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN 'already_liked';
+END;
+$$;
+
+-- Unlike a song: deletes the row and bumps vote count down
+-- Returns 'unliked' on success, 'not_liked' if nothing to remove
+CREATE OR REPLACE FUNCTION unlike_song(p_voter_id VARCHAR, p_song_id UUID)
+RETURNS TEXT
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_existed INTEGER;
+BEGIN
+  DELETE FROM song_likes WHERE voter_id = p_voter_id AND song_id = p_song_id
+  RETURNING 1 INTO v_existed;
+
+  IF FOUND THEN
+    UPDATE songs SET votes = GREATEST(0, votes - 1) WHERE id = p_song_id;
+    RETURN 'unliked';
+  ELSE
+    RETURN 'not_liked';
+  END IF;
+END;
+$$;
+
+-- Check if a voter has liked a song (returns true/false)
+CREATE OR REPLACE FUNCTION has_liked_song(p_voter_id VARCHAR, p_song_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_exists BOOLEAN;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM song_likes WHERE voter_id = p_voter_id AND song_id = p_song_id
+  ) INTO v_exists;
+  RETURN v_exists;
+END;
+$$;

@@ -4,10 +4,13 @@ import { createSupabaseServerClient } from "@/lib/supabase";
 /* ============================================
    API: GET /api/songs
    Obtener lista de canciones.
+   Opcional: pasar ?voterId=xxx para saber qu%C3%A9 canciones ya le dio like.
    ============================================ */
 export async function GET(request: NextRequest) {
   try {
     const supabase = createSupabaseServerClient();
+    const { searchParams } = new URL(request.url);
+    const voterId = searchParams.get("voterId");
 
     if (!supabase) {
       return NextResponse.json({ songs: [] });
@@ -24,7 +27,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ songs: [] });
     }
 
-    return NextResponse.json({ songs: songs || [] });
+    // If voterId provided, check which songs this voter has liked
+    let likedSongIds: string[] = [];
+    if (voterId && songs) {
+      const { data: likes } = await supabase
+        .from("song_likes")
+        .select("song_id")
+        .eq("voter_id", voterId)
+        .in("song_id", songs.map((s: Record<string, unknown>) => s.id));
+
+      if (likes) {
+        likedSongIds = likes.map((l) => String(l.song_id));
+      }
+    }
+
+    const enriched = (songs || []).map((s: Record<string, unknown>) => ({
+      ...s,
+      isLikedByVoter: likedSongIds.includes(String(s.id)),
+    }));
+
+    return NextResponse.json({ songs: enriched });
   } catch (error) {
     console.error("Songs API error:", error);
     return NextResponse.json(
@@ -99,16 +121,20 @@ export async function POST(request: NextRequest) {
 
 /* ============================================
    API: PATCH /api/songs
-   Votar por una canción.
+   Like / unlike una canción (una vez por canción por navegador).
    ============================================ */
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { songId, delta } = body as { songId: string; delta: number };
+    const { songId, voterId, isLike } = body as {
+      songId: string;
+      voterId: string;
+      isLike: boolean;
+    };
 
-    if (!songId) {
+    if (!songId || !voterId) {
       return NextResponse.json(
-        { error: "El ID de la canción es requerido." },
+        { error: "El ID de la canción y el voter_id son requeridos." },
         { status: 400 }
       );
     }
@@ -116,20 +142,50 @@ export async function PATCH(request: NextRequest) {
     const supabase = createSupabaseServerClient();
 
     if (supabase) {
-      const { error } = await supabase.rpc("vote_song", {
-        p_song_id: songId,
-        p_delta: delta || 1,
-      });
+      let result: string;
 
-      if (error) {
-        console.error("Vote error:", error);
-        return NextResponse.json(
-          { error: "Error al votar." },
-          { status: 500 }
-        );
+      if (isLike) {
+        const { data, error } = await supabase.rpc("like_song", {
+          p_voter_id: voterId,
+          p_song_id: songId,
+        });
+
+        if (error) {
+          console.error("Like error:", error);
+          return NextResponse.json(
+            { error: "Error al dar like." },
+            { status: 500 }
+          );
+        }
+        result = data || "";
+      } else {
+        const { data, error } = await supabase.rpc("unlike_song", {
+          p_voter_id: voterId,
+          p_song_id: songId,
+        });
+
+        if (error) {
+          console.error("Unlike error:", error);
+          return NextResponse.json(
+            { error: "Error al quitar like." },
+            { status: 500 }
+          );
+        }
+        result = data || "";
       }
 
-      return NextResponse.json({ success: true });
+      // Map RPC results to a consistent response
+      if (isLike) {
+        if (result === "liked") return NextResponse.json({ liked: true });
+        if (result === "already_liked")
+          return NextResponse.json({ liked: true, alreadyLiked: true });
+      } else {
+        if (result === "unliked") return NextResponse.json({ liked: false });
+        if (result === "not_liked")
+          return NextResponse.json({ liked: false, notLiked: true });
+      }
+
+      return NextResponse.json({ success: false });
     }
 
     return NextResponse.json(
@@ -137,7 +193,7 @@ export async function PATCH(request: NextRequest) {
       { status: 503 }
     );
   } catch (error) {
-    console.error("Vote API error:", error);
+    console.error("Like API error:", error);
     return NextResponse.json(
       { error: "Error interno del servidor." },
       { status: 500 }
