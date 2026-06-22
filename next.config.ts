@@ -41,16 +41,6 @@ const nextConfig: NextConfig = {
           },
         ],
       },
-      // Caché agresivo para assets estáticos
-      {
-        source: "/((?!api/).*)",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
     ];
   },
 
