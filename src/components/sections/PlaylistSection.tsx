@@ -378,112 +378,106 @@ export default function PlaylistSection() {
           subtitle="Busca videos en YouTube o agrega los tuyos para nuestra fiesta"
         />
 
-        {/* Buscador YouTube */}
+        {/* Buscador YouTube - Unified Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-8 relative"
-        >
-          <GlassCard padding="sm" className="flex items-center gap-3">
-            <Search className="text-burgundy/30 flex-shrink-0" size={20} />
-            <input
-              type="text"
-              placeholder="Buscar en YouTube... (canción, artista, o pega una URL)"
-              value={searchTerm}
-              onChange={handleSearchChange}
-              className="flex-1 bg-transparent focus:outline-none text-body text-burgundy placeholder:text-burgundy/30"
-            />
-            {isSearching && <Loader2 size={18} className="text-gold animate-spin" />}
-            {searchTerm && !isSearching && (
-              <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setYoutubeResults([]);
-                  setSearchError(null);
-                }}
-                type="button"
-              >
-                <X size={18} className="text-burgundy/30 hover:text-burgundy/60" />
-              </button>
-            )}
-          </GlassCard>
-
-          {/* Resultados de YouTube */}
-          <AnimatePresence>
-            {(youtubeResults.length > 0 || searchError) && (
-              <motion.div
-                ref={searchResultsRef}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute top-full left-0 right-0 mt-2 z-30"
-              >
-                {searchError ? (
-                  <GlassCard variant="strong" padding="sm">
-                    <p className="text-body text-rose text-sm text-center py-3">
-                      {searchError}
-                    </p>
-                  </GlassCard>
-                ) : (
-                  <GlassCard
-                    variant="strong"
-                    padding="sm"
-                    className="max-h-80 overflow-y-auto"
-                  >
-                    {youtubeResults.map((video) => (
-                      <button
-                        key={video.videoId + video.title}
-                        onClick={() => handleAddFromYouTube(video)}
-                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/20 transition-colors text-left"
-                        type="button"
-                      >
-                        {video.thumbnailUrl ? (
-                          <img
-                            src={video.thumbnailUrl}
-                            alt={video.title}
-                            className="w-16 h-10 rounded-lg object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-16 h-10 rounded-lg bg-burgundy/5 flex items-center justify-center flex-shrink-0">
-                            <Music size={14} className="text-gold" />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-body text-burgundy font-medium text-sm truncate">
-                            {video.title}
-                          </p>
-                          <p className="text-body text-burgundy/50 text-xs truncate">
-                            {video.artist}
-                          </p>
-                        </div>
-                        <Plus size={18} className="text-gold flex-shrink-0" />
-                      </button>
-                    ))}
-                  </GlassCard>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Agregar manualmente */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6, delay: 0.1 }}
           className="mb-8"
         >
-          <button
-            onClick={() => setAddFormOpen(!addFormOpen)}
-            className="btn-outline text-sm mb-4"
-            type="button"
-          >
-            {addFormOpen ? <X size={16} /> : <Plus size={16} />}
-            {addFormOpen ? "Cancelar" : "Agregar manualmente"}
-          </button>
+          {/* Unified search container - stronger glass effect */}
+          <GlassCard variant="strong" padding="none" className="overflow-hidden rounded-2xl">
+            {/* Search input section */}
+            <div className="p-4 border-b border-champagne/30">
+              <div className="flex items-center gap-3">
+                <Search className="text-burgundy/40 flex-shrink-0" size={22} />
+                <input
+                  type="text"
+                  placeholder="Buscar en YouTube... (canción, artista, o pega una URL)"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="flex-1 bg-transparent focus:outline-none text-body text-burgundy placeholder:text-burgundy/40 text-base"
+                />
+                {isSearching && <Loader2 size={20} className="text-gold animate-spin" />}
+                {searchTerm && !isSearching && (
+                  <button
+                    onClick={() => {
+                      setSearchTerm("");
+                      setYoutubeResults([]);
+                      setSearchError(null);
+                    }}
+                    type="button"
+                  >
+                    <X size={20} className="text-burgundy/40 hover:text-burgundy/70" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Results dropdown - now INSIDE the card, no absolute positioning needed */}
+            <AnimatePresence>
+              {(youtubeResults.length > 0 || searchError) && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="max-h-96 overflow-y-auto bg-white/5"
+                >
+                  {searchError ? (
+                    <div className="p-4 text-center">
+                      <p className="text-rose text-sm">{searchError}</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-champagne/20">
+                      {youtubeResults.map((video) => (
+                        <button
+                          key={video.videoId + video.title}
+                          onClick={() => handleAddFromYouTube(video)}
+                          className="w-full flex items-center gap-4 p-4 hover:bg-white/10 transition-colors text-left"
+                          type="button"
+                        >
+                          {video.thumbnailUrl ? (
+                            <img
+                              src={video.thumbnailUrl}
+                              alt={video.title}
+                              className="w-16 h-10 rounded-lg object-cover flex-shrink-0 border border-champagne/20"
+                            />
+                          ) : (
+                            <div className="w-16 h-10 rounded-lg bg-burgundy/10 flex items-center justify-center flex-shrink-0 border border-champagne/20">
+                              <Music size={16} className="text-gold" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-body text-burgundy font-medium text-sm truncate">
+                              {video.title}
+                            </p>
+                            <p className="text-body text-burgundy/70 text-xs truncate">
+                              {video.artist}
+                            </p>
+                          </div>
+                          <Plus size={20} className="text-gold/80 flex-shrink-0 hover:text-gold transition-colors" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </GlassCard>
+
+          {/* "Agregar manualmente" button - visually connected via spacing */}
+          <div className="mt-3">
+            <button
+              onClick={() => setAddFormOpen(!addFormOpen)}
+              className="btn-outline text-sm w-full md:w-auto"
+              type="button"
+            >
+              {addFormOpen ? <X size={16} /> : <Plus size={16} />}
+              {addFormOpen ? "Cancelar" : "Agregar manualmente"}
+            </button>
+          </div>
+        </motion.div>
 
           <AnimatePresence>
             {addFormOpen && (
@@ -530,7 +524,6 @@ export default function PlaylistSection() {
               </motion.form>
             )}
           </AnimatePresence>
-        </motion.div>
 
         {/* Notificación de éxito */}
         <AnimatePresence>

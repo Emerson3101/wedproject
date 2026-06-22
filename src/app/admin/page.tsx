@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { MessageSquare } from "lucide-react";
 
 /* ============================================
    ADMIN PANEL — Panel de Administración
@@ -53,11 +54,20 @@ interface SongData {
   created_at: string;
 }
 
+interface GuestMessage {
+  id: string;
+  guestName: string;
+  guestEmail: string;
+  message: string;
+  status: string;
+  createdAt: string;
+}
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"dashboard" | "guests" | "songs">(
+  const [activeTab, setActiveTab] = useState<"dashboard" | "guests" | "songs" | "messages">(
     "dashboard"
   );
   const [guests, setGuests] = useState<GuestWithCompanions[]>([]);
@@ -73,6 +83,9 @@ export default function AdminPage() {
   });
   const [apiError, setApiError] = useState<string | null>(null);
   const [songsError, setSongsError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<GuestMessage[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   // Track which guest rows are expanded
   const [expandedGuests, setExpandedGuests] = useState<Set<string>>(new Set());
 
@@ -224,6 +237,48 @@ export default function AdminPage() {
     };
   }, [isAuthenticated, activeTab]);
 
+  // Cargar mensajes
+  useEffect(() => {
+    if (!isAuthenticated || activeTab !== "messages") return;
+
+    let cancelled = false;
+
+    const fetchMessages = async () => {
+      setMessagesLoading(true);
+      setMessagesError(null);
+
+      try {
+        const res = await fetch("/api/admin/messages");
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `API returned status ${res.status}`);
+        }
+
+        if (!cancelled) {
+          setMessages(data.messages || []);
+        }
+      } catch (err) {
+        console.error("Error loading messages:", err);
+        if (!cancelled) {
+          setMessagesError(
+            err instanceof Error ? err.message : "Error cargando los mensajes"
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setMessagesLoading(false);
+        }
+      }
+    };
+
+    fetchMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, activeTab]);
+
   // Aprobar/desaprobar canción
   const toggleApproval = async (song: SongData) => {
     try {
@@ -337,7 +392,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-8">
-          {(["dashboard", "guests", "songs"] as const).map((tab) => (
+          {(["dashboard", "guests", "songs", "messages"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -351,7 +406,9 @@ export default function AdminPage() {
                 ? "Dashboard"
                 : tab === "guests"
                   ? "Invitados"
-                  : "Canciones"}
+                  : tab === "songs"
+                    ? "Canciones"
+                    : "Mensajes"}
             </button>
           ))}
         </div>
@@ -373,7 +430,7 @@ export default function AdminPage() {
 
         {/* Guests Table */}
         {activeTab === "guests" && (
-          <div className="glass p-6 overflow-x-auto">
+          <div className="glass p-8 overflow-x-auto">
             {loading ? (
               <p className="text-burgundy/60 text-center py-8">
                 Cargando invitados...
@@ -393,28 +450,28 @@ export default function AdminPage() {
                 No hay invitados registrados aún.
               </p>
             ) : (
-              <table className="w-full text-left">
+              <table className="w-full text-center">
                 <thead>
-                  <tr className="border-b border-champagne">
-                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                  <tr className="border-b border-champagne bg-white/5">
+                    <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                       Nombre
                     </th>
-                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                    <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                       Email
                     </th>
-                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                    <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                       Teléfono
                     </th>
-                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                    <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                       Estado
                     </th>
-                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                    <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                       Acompañantes
                     </th>
-                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                    <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                       Mensaje
                     </th>
-                    <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                    <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                       Fecha
                     </th>
                   </tr>
@@ -423,36 +480,36 @@ export default function AdminPage() {
                   {guests.map(({ guest, companions }) => (
                     <React.Fragment key={guest.id}>
                       <tr
-                        className="border-b border-champagne/30 cursor-pointer hover:bg-champagne/10 transition-colors"
+                        className="border-b border-champagne/30 cursor-pointer hover:bg-white/5 transition-colors"
                         onClick={() => toggleGuest(guest.id)}
                       >
-                        <td className="py-3 text-burgundy font-medium">
+                        <td className="py-5 px-6 text-burgundy font-medium">
                           {guest.name}
                         </td>
-                        <td className="py-3 text-burgundy/60 text-sm">
+                        <td className="py-5 px-6 text-burgundy/80 text-sm">
                           {guest.email}
                         </td>
-                        <td className="py-3 text-burgundy/60 text-sm">
+                        <td className="py-5 px-6 text-burgundy/80 text-sm">
                           {guest.phone || "—"}
                         </td>
-                        <td className="py-3">
+                        <td className="py-5 px-6">
                           <StatusBadge status={guest.status} />
                         </td>
-                        <td className="py-3 text-burgundy text-center">
+                        <td className="py-5 px-6 text-burgundy">
                           <span
                             className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${
                               companions.length > 0
                                 ? "bg-sage/20 text-sage"
-                                : "text-burgundy/30"
+                                : "text-burgundy/50"
                             }`}
                           >
                             {companions.length}
                           </span>
                         </td>
-                        <td className="py-3 text-burgundy/60 text-sm italic max-w-xs truncate">
+                        <td className="py-5 px-6 text-burgundy/85 text-sm max-w-md truncate">
                           {guest.message || "—"}
                         </td>
-                        <td className="py-3 text-burgundy/40 text-xs">
+                        <td className="py-5 px-6 text-burgundy/70 text-xs">
                           {new Date(guest.created_at).toLocaleDateString("es-MX", {
                             day: "numeric",
                             month: "short",
@@ -533,7 +590,7 @@ export default function AdminPage() {
             </div>
 
             {/* Songs table */}
-            <div className="glass p-6 overflow-x-auto">
+            <div className="glass p-8 overflow-x-auto">
               {songsLoading ? (
                 <p className="text-burgundy/60 text-center py-8">
                   Cargando canciones...
@@ -561,31 +618,31 @@ export default function AdminPage() {
                   No hay canciones aún.
                 </p>
               ) : (
-                <table className="w-full text-left">
+                <table className="w-full text-center">
                   <thead>
-                    <tr className="border-b border-champagne">
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                    <tr className="border-b border-champagne bg-white/5">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Video
                       </th>
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Título
                       </th>
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Artista
                       </th>
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Votos
                       </th>
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Estado
                       </th>
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Agregado por
                       </th>
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Fecha
                       </th>
-                      <th className="pb-3 text-burgundy text-sm uppercase tracking-wider text-center">
+                      <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">
                         Acciones
                       </th>
                     </tr>
@@ -594,16 +651,16 @@ export default function AdminPage() {
                     {songs.map((song) => (
                       <tr
                         key={song.id}
-                        className="border-b border-champagne/30 hover:bg-champagne/10 transition-colors"
+                        className="border-b border-champagne/30 hover:bg-white/5 transition-colors"
                       >
                         {/* Thumbnail */}
-                        <td className="py-3">
+                        <td className="py-5 px-6">
                           {song.youtube_video_id ? (
                             <a
                               href={`https://www.youtube.com/watch?v=${song.youtube_video_id}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="block w-20 h-12 rounded overflow-hidden"
+                              className="block w-20 h-12 rounded overflow-hidden mx-auto"
                             >
                               <img
                                 src={`https://img.youtube.com/vi/${song.youtube_video_id}/default.jpg`}
@@ -612,7 +669,7 @@ export default function AdminPage() {
                               />
                             </a>
                           ) : (
-                            <div className="w-20 h-12 rounded bg-burgundy/5 flex items-center justify-center">
+                            <div className="w-20 h-12 rounded bg-burgundy/5 flex items-center justify-center mx-auto">
                               <span className="text-burgundy/20 text-xs">
                                 Sin video
                               </span>
@@ -620,30 +677,30 @@ export default function AdminPage() {
                           )}
                         </td>
 
-                        <td className="py-3 text-burgundy font-medium text-sm">
+                        <td className="py-5 px-6 text-burgundy font-medium text-sm">
                           {song.title}
                         </td>
-                        <td className="py-3 text-burgundy/60 text-sm">
+                        <td className="py-5 px-6 text-burgundy/80 text-sm">
                           {song.artist}
                         </td>
-                        <td className="py-3 text-burgundy text-center">
+                        <td className="py-5 px-6 text-burgundy">
                           <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-burgundy/5 text-sm font-medium">
                             {song.votes}
                           </span>
                         </td>
-                        <td className="py-3 text-center">
+                        <td className="py-5 px-6">
                           <SongStatusBadge isApproved={song.is_approved} />
                         </td>
-                        <td className="py-3 text-burgundy/60 text-sm">
+                        <td className="py-5 px-6 text-burgundy/80 text-sm">
                           {song.added_by}
                         </td>
-                        <td className="py-3 text-burgundy/40 text-xs">
+                        <td className="py-5 px-6 text-burgundy/70 text-xs">
                           {new Date(song.created_at).toLocaleDateString("es-MX", {
                             day: "numeric",
                             month: "short",
                           })}
                         </td>
-                        <td className="py-3">
+                        <td className="py-5 px-6">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => toggleApproval(song)}
@@ -671,6 +728,49 @@ export default function AdminPage() {
                 </table>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Messages Tab */}
+        {activeTab === "messages" && (
+          <div className="space-y-4">
+            {messagesLoading ? (
+              <p className="text-burgundy/60 text-center py-8">
+                Cargando mensajes...
+              </p>
+            ) : messagesError ? (
+              <div className="text-center py-8">
+                <p className="text-rose mb-2">{messagesError}</p>
+                <button
+                  onClick={() => {
+                    setMessagesError(null);
+                    setMessagesLoading(true);
+                    fetch("/api/admin/messages")
+                      .then((res) => res.json())
+                      .then((data) => setMessages(data.messages || []))
+                      .catch((err) => setMessagesError(err.message))
+                      .finally(() => setMessagesLoading(false));
+                  }}
+                  className="btn-outline text-sm"
+                >
+                  Reintentar
+                </button>
+              </div>
+            ) : messages.length === 0 ? (
+              <div className="glass p-12 text-center">
+                <MessageSquare className="w-16 h-16 mx-auto text-burgundy/30 mb-4" />
+                <p className="text-burgundy/60 text-lg">No hay mensajes aún</p>
+                <p className="text-burgundy/40 text-sm mt-1">
+                  Los mensajes aparecerán aquí cuando los invitados respondan
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {messages.map((msg) => (
+                  <MessageCard key={msg.id} message={msg} />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -750,5 +850,49 @@ function SongStatusBadge({ isApproved }: { isApproved: boolean }) {
     >
       {isApproved ? "Aprobada" : "Pendiente"}
     </span>
+  );
+}
+
+function MessageCard({ message }: { message: GuestMessage }) {
+  const statusColor = {
+    confirmed: "bg-sage/20 text-sage",
+    declined: "bg-rose/20 text-rose",
+    pending: "bg-gold/20 text-gold",
+  }[message.status] || "bg-gold/20 text-gold";
+
+  const statusLabel = {
+    confirmed: "Confirmado",
+    declined: "Declinado",
+    pending: "Pendiente",
+  }[message.status] || message.status;
+
+  return (
+    <div className="glass p-6 hover:bg-white/10 transition-colors">
+      <div className="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <p className="text-display text-lg text-burgundy font-medium">
+            {message.guestName}
+          </p>
+          <p className="text-burgundy/60 text-sm">{message.guestEmail}</p>
+        </div>
+        <span className={`inline-block px-2 py-1 rounded-full text-xs uppercase tracking-wider ${statusColor} flex-shrink-0`}>
+          {statusLabel}
+        </span>
+      </div>
+      <div className="bg-white/5 rounded-lg p-4 mb-3">
+        <p className="text-burgundy/95 text-body whitespace-normal break-words leading-relaxed">
+          {message.message}
+        </p>
+      </div>
+      <div className="flex items-center justify-between text-burgundy/60 text-xs">
+        <span>
+          {new Date(message.createdAt).toLocaleDateString("es-MX", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+    </div>
   );
 }
