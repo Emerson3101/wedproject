@@ -25,6 +25,9 @@ function maskKey(key: string) {
 
 /* GET — diagnostics + read guests */
 export async function GET() {
+  if (process.env.NODE_ENV !== "development") {
+    return new Response("Not Found", { status: 404 });
+  }
   const env = {
     supabaseUrl: maskUrl(supabaseConfig.url),
     anonKey: maskKey(supabaseConfig.anonKey),
@@ -88,6 +91,9 @@ export async function GET() {
 
 /* POST — insert a test guest */
 export async function POST() {
+  if (process.env.NODE_ENV !== "development") {
+    return new Response("Not Found", { status: 404 });
+  }
   if (!isSupabaseServerConfigured) {
     return NextResponse.json(
       {
@@ -156,6 +162,9 @@ export async function POST() {
 
 /* DELETE — remove test guests */
 export async function DELETE() {
+  if (process.env.NODE_ENV !== "development") {
+    return new Response("Not Found", { status: 404 });
+  }
   if (!isSupabaseServerConfigured) {
     return NextResponse.json(
       { ok: false, error: "Supabase server not configured." },

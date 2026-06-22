@@ -18,7 +18,7 @@ export default function Footer() {
 
       {/* Mensaje */}
       <p className="text-body text-burgundy/50 text-sm max-w-md mx-auto mb-6">
-        "Y tuvieron muchos, y muy buenos, hijos."
+        &ldquo;Y tuvieron muchos, y muy buenos, hijos.&rdquo;
         <br />
         <span className="italic">— Caperucita Roja</span>
       </p>

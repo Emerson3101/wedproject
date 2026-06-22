@@ -56,6 +56,7 @@ interface SongData {
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"dashboard" | "guests" | "songs">(
     "dashboard"
   );
@@ -75,16 +76,44 @@ export default function AdminPage() {
   // Track which guest rows are expanded
   const [expandedGuests, setExpandedGuests] = useState<Set<string>>(new Set());
 
-  // Autenticación básica
-  const handleLogin = (e: React.FormEvent) => {
+  // Verificar sesión activa al montar el componente
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      try {
+        const res = await fetch("/api/admin/check");
+        if (res.ok) {
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.error("Error al verificar autenticación:", err);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+    checkAuthStatus();
+  }, []);
+
+  // Autenticación con el endpoint del servidor
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (
-      password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD ||
-      password === "boda2025"
-    ) {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Contraseña incorrecta");
+      }
       setIsAuthenticated(true);
-    } else {
-      alert("Contraseña incorrecta");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Contraseña incorrecta");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -202,7 +231,6 @@ export default function AdminPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "boda2025"}`,
         },
         body: JSON.stringify({
           songId: song.id,
@@ -258,6 +286,14 @@ export default function AdminPage() {
     pending: songs.filter((s) => !s.is_approved).length,
     topSong: songs.length > 0 ? songs.reduce((a, b) => (a.votes > b.votes ? a : b)) : null,
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-romantic flex items-center justify-center p-4">
+        <div className="w-10 h-10 border-4 border-burgundy border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (

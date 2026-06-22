@@ -69,7 +69,13 @@ type CloudinaryUploadResult = {
   message?: string;
 };
 
+import { notFound } from "next/navigation";
+
 export default function TestPage() {
+  if (process.env.NODE_ENV !== "development") {
+    notFound();
+  }
+
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
   const [insertResult, setInsertResult] = useState<InsertResult | null>(null);
   const [cloudCheckResult, setCloudCheckResult] = useState<CloudinaryCheckResult | null>(null);

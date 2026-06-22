@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase";
 import { resendConfig, isResendConfigured } from "@/lib/config";
+import { cookies } from "next/headers";
+import { sanitizeInput, isValidEmail } from "@/lib/utils";
 
 /* ============================================
    API: POST /api/rsvp
@@ -8,6 +10,28 @@ import { resendConfig, isResendConfigured } from "@/lib/config";
    ============================================ */
 export async function POST(request: NextRequest) {
   try {
+    const invitationCode = process.env.INVITATION_CODE;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!invitationCode || !adminPassword) {
+      return NextResponse.json(
+        { error: "Servicio no disponible por error de configuración del servidor." },
+        { status: 503 }
+      );
+    }
+
+    // Verificar sesión (invitado o admin)
+    const cookieStore = await cookies();
+    const siteCookie = cookieStore.get("site_auth")?.value;
+    const adminCookie = cookieStore.get("admin_auth")?.value;
+
+    if (siteCookie !== invitationCode && adminCookie !== adminPassword) {
+      return NextResponse.json(
+        { error: "No autorizado." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const {
       name,
@@ -29,33 +53,74 @@ export async function POST(request: NextRequest) {
       message?: string;
     };
 
-    // Validación básica
-    if (!name || !email) {
+    // Sanitización y validaciones de tamaño/formato
+    const cleanName = sanitizeInput(name?.trim() || "");
+    const cleanEmail = email?.trim() || "";
+    const cleanPhone = sanitizeInput(phone?.trim() || "");
+    const cleanDietary = sanitizeInput(dietary?.trim() || "");
+    const cleanMessage = sanitizeInput(message?.trim() || "");
+
+    if (!cleanName || !cleanEmail) {
       return NextResponse.json(
         { error: "El nombre y el email son requeridos." },
         { status: 400 }
       );
     }
 
+    if (!isValidEmail(cleanEmail)) {
+      return NextResponse.json(
+        { error: "Por favor, ingresa un correo electrónico válido." },
+        { status: 400 }
+      );
+    }
+
+    if (
+      cleanName.length > 100 ||
+      cleanPhone.length > 20 ||
+      cleanDietary.length > 500 ||
+      cleanMessage.length > 1000
+    ) {
+      return NextResponse.json(
+        { error: "Los datos ingresados exceden el límite de caracteres permitido." },
+        { status: 400 }
+      );
+    }
+
+    const companionsPayload =
+      companions && companions.length > 0
+        ? companions.map((c) => ({
+          name: sanitizeInput(c.name?.trim() || ""),
+          dietary_restrictions: c.dietary ? sanitizeInput(c.dietary.trim()) : null,
+        }))
+        : [];
+
+    // Validar acompañantes
+    for (const comp of companionsPayload) {
+      if (!comp.name) {
+        return NextResponse.json(
+          { error: "El nombre del acompañante es requerido." },
+          { status: 400 }
+        );
+      }
+      if (comp.name.length > 100 || (comp.dietary_restrictions && comp.dietary_restrictions.length > 500)) {
+        return NextResponse.json(
+          { error: "Los datos de los acompañantes exceden el límite de caracteres permitido." },
+          { status: 400 }
+        );
+      }
+    }
+
     const supabase = createSupabaseServerClient();
 
     if (supabase) {
-      const companionsPayload =
-        companions && companions.length > 0
-          ? companions.map((c) => ({
-            name: c.name,
-            dietary_restrictions: c.dietary || null,
-          }))
-          : [];
-
       const { error: rsvpError } = await supabase.rpc("submit_rsvp", {
-        p_name: name,
-        p_email: email,
-        p_phone: phone || null,
+        p_name: cleanName,
+        p_email: cleanEmail,
+        p_phone: cleanPhone || null,
         p_status: status,
         p_num_companions: numCompanions || 0,
-        p_dietary: dietary || null,
-        p_message: message || null,
+        p_dietary: cleanDietary || null,
+        p_message: cleanMessage || null,
         p_side: null,
         p_companions: companionsPayload,
       });
@@ -100,6 +165,28 @@ export async function POST(request: NextRequest) {
    ============================================ */
 export async function GET(request: NextRequest) {
   try {
+    const invitationCode = process.env.INVITATION_CODE;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!invitationCode || !adminPassword) {
+      return NextResponse.json(
+        { error: "Servicio no disponible por error de configuración del servidor." },
+        { status: 503 }
+      );
+    }
+
+    // Verificar sesión (invitado o admin)
+    const cookieStore = await cookies();
+    const siteCookie = cookieStore.get("site_auth")?.value;
+    const adminCookie = cookieStore.get("admin_auth")?.value;
+
+    if (siteCookie !== invitationCode && adminCookie !== adminPassword) {
+      return NextResponse.json(
+        { error: "No autorizado." },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const email = searchParams.get("email");
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Music,
@@ -141,59 +141,60 @@ export default function PlaylistSection() {
   }, []);
 
   // Buscar en YouTube con debounce
-  const searchYouTube = useCallback(
-    debounce(async (query: string) => {
-      if (query.length < 2) {
-        setYoutubeResults([]);
-        setSearchError(null);
-        return;
-      }
+  const searchYouTube = useMemo(
+    () =>
+      debounce(async (query: string) => {
+        if (query.length < 2) {
+          setYoutubeResults([]);
+          setSearchError(null);
+          return;
+        }
 
-      // Si el usuario pegó una URL directa, extraer el video ID
-      const videoId = extractYouTubeVideoId(query);
-      if (videoId) {
-        // Hacer una búsqueda específica por el video ID
+        // Si el usuario pegó una URL directa, extraer el video ID
+        const videoId = extractYouTubeVideoId(query);
+        if (videoId) {
+          // Hacer una búsqueda específica por el video ID
+          setIsSearching(true);
+          try {
+            const res = await fetch(
+              `/api/youtube/search?q=${encodeURIComponent(query)}`
+            );
+            const data = (await res.json()) as { videos?: YouTubeVideo[] };
+            if (data.videos && data.videos.length > 0) {
+              setYoutubeResults(data.videos);
+              setSearchError(null);
+            } else {
+              setYoutubeResults([]);
+              setSearchError("No se encontró el video. Intenta con otra búsqueda.");
+            }
+          } catch {
+            setSearchError("Error al buscar el video.");
+          } finally {
+            setIsSearching(false);
+          }
+          return;
+        }
+
         setIsSearching(true);
+        setSearchError(null);
         try {
           const res = await fetch(
             `/api/youtube/search?q=${encodeURIComponent(query)}`
           );
-          const data = (await res.json()) as { videos?: YouTubeVideo[] };
-          if (data.videos && data.videos.length > 0) {
-            setYoutubeResults(data.videos);
-            setSearchError(null);
-          } else {
+          const data = (await res.json()) as { videos?: YouTubeVideo[]; error?: string };
+
+          if (data.error) {
+            setSearchError(data.error);
             setYoutubeResults([]);
-            setSearchError("No se encontró el video. Intenta con otra búsqueda.");
+          } else {
+            setYoutubeResults(data.videos || []);
           }
         } catch {
-          setSearchError("Error al buscar el video.");
+          setSearchError("Error buscando en YouTube.");
         } finally {
           setIsSearching(false);
         }
-        return;
-      }
-
-      setIsSearching(true);
-      setSearchError(null);
-      try {
-        const res = await fetch(
-          `/api/youtube/search?q=${encodeURIComponent(query)}`
-        );
-        const data = (await res.json()) as { videos?: YouTubeVideo[]; error?: string };
-
-        if (data.error) {
-          setSearchError(data.error);
-          setYoutubeResults([]);
-        } else {
-          setYoutubeResults(data.videos || []);
-        }
-      } catch {
-        setSearchError("Error buscando en YouTube.");
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500),
+      }, 500),
     []
   );
 
@@ -278,7 +279,7 @@ export default function PlaylistSection() {
 
   const handleAddFromYouTube = async (video: YouTubeVideo) => {
     const newSong: SongEntry = {
-      id: Date.now().toString(),
+      id: `yt_${songs.length + 1}`,
       title: video.title,
       artist: video.artist,
       youtube_video_id: video.videoId,
@@ -329,7 +330,7 @@ export default function PlaylistSection() {
     }
 
     const newSong: SongEntry = {
-      id: Date.now().toString(),
+      id: `manual_${songs.length + 1}`,
       title: manualTitle.trim(),
       artist: manualArtist.trim(),
       youtube_video_id: videoId,
@@ -542,7 +543,7 @@ export default function PlaylistSection() {
             >
               <span className="glass-subtle inline-flex items-center gap-2 px-4 py-2 text-sage text-sm">
                 <Check size={16} />
-                ¡"{addedSuccess}" agregada!
+                ¡&ldquo;{addedSuccess}&rdquo; agregada!
               </span>
             </motion.div>
           )}

@@ -10,6 +10,9 @@ function mask(value: string) {
 
 /* GET — diagnostics: are Cloudinary env vars configured? */
 export async function GET() {
+  if (process.env.NODE_ENV !== "development") {
+    return new Response("Not Found", { status: 404 });
+  }
   const hasCloudName = cloudinaryConfig.cloudName !== "";
   const hasUploadPreset = cloudinaryConfig.uploadPreset !== "";
 
@@ -44,6 +47,9 @@ export async function GET() {
 
 /* POST — upload a small test image to Cloudinary */
 export async function POST(_request: NextRequest) {
+  if (process.env.NODE_ENV !== "development") {
+    return new Response("Not Found", { status: 404 });
+  }
   if (!cloudinaryConfig.cloudName || !cloudinaryConfig.uploadPreset) {
     return NextResponse.json(
       { ok: false, error: "Cloudinary not configured. Check .env.local" },
@@ -114,6 +120,9 @@ export async function POST(_request: NextRequest) {
 
 /* DELETE — remove the test image from Cloudinary */
 export async function DELETE() {
+  if (process.env.NODE_ENV !== "development") {
+    return new Response("Not Found", { status: 404 });
+  }
   /* Cloudinary unsigned uploads cannot be deleted without an API secret
      (which we don't store client-safe). Instead we return a message
      telling the user to clean up manually or note that the test image

@@ -27,6 +27,7 @@ export function sleep(ms: number): Promise<void> {
 }
 
 /** Debounce utility */
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
 export function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
@@ -37,3 +38,23 @@ export function debounce<T extends (...args: any[]) => any>(
     timeout = setTimeout(() => func(...args), wait);
   };
 }
+
+/** HTML / XSS sanitization helper to strip/escape script tags and special characters */
+export function sanitizeInput(input: string): string {
+  if (typeof input !== "string") return "";
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
+}
+
+/** Email validation helper */
+export function isValidEmail(email: string): boolean {
+  if (typeof email !== "string") return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return email.length <= 150 && emailRegex.test(email);
+}
+

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { youtubeConfig, isYouTubeConfigured } from "@/lib/config";
+import { cookies } from "next/headers";
 
 /* ============================================
    API: GET /api/youtube/search?q=...
@@ -8,6 +9,28 @@ import { youtubeConfig, isYouTubeConfigured } from "@/lib/config";
    ============================================ */
 
 export async function GET(request: NextRequest) {
+  const invitationCode = process.env.INVITATION_CODE;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (!invitationCode || !adminPassword) {
+    return NextResponse.json(
+      { error: "Servicio no disponible por error de configuración del servidor." },
+      { status: 503 }
+    );
+  }
+
+  // Verificar sesión (invitado o admin)
+  const cookieStore = await cookies();
+  const siteCookie = cookieStore.get("site_auth")?.value;
+  const adminCookie = cookieStore.get("admin_auth")?.value;
+
+  if (siteCookie !== invitationCode && adminCookie !== adminPassword) {
+    return NextResponse.json(
+      { error: "No autorizado." },
+      { status: 401 }
+    );
+  }
+
   if (!isYouTubeConfigured) {
     return NextResponse.json(
       { error: "YouTube no configurado." },
