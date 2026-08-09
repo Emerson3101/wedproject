@@ -1,5 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { cloudinaryConfig } from "@/lib/config";
+
+/* Respuesta de subida de Cloudinary (solo los campos que consumimos). */
+interface CloudinaryUploadResponse {
+  public_id?: string;
+  secure_url?: string;
+  format?: string;
+  bytes?: number;
+  width?: number;
+  height?: number;
+  error?: { message?: string };
+}
 
 /* Helper to mask sensitive values */
 function mask(value: string) {
@@ -46,7 +57,7 @@ export async function GET() {
 }
 
 /* POST — upload a small test image to Cloudinary */
-export async function POST(_request: NextRequest) {
+export async function POST() {
   if (process.env.NODE_ENV !== "development") {
     return new Response("Not Found", { status: 404 });
   }
@@ -75,9 +86,9 @@ export async function POST(_request: NextRequest) {
 
     /* Safely parse response — Cloudinary may return HTML on network/auth errors */
     const contentType = res.headers.get("content-type") || "";
-    let data: Record<string, any> = {};
+    let data: CloudinaryUploadResponse = {};
     if (contentType.includes("json")) {
-      data = (await res.json()) as Record<string, any>;
+      data = (await res.json()) as CloudinaryUploadResponse;
     } else {
       const text = await res.text();
       throw new Error(`Cloudinary returned non-JSON (${res.status}): ${text.slice(0, 200)}`);

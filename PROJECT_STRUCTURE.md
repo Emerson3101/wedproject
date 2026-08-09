@@ -1,206 +1,324 @@
 # Project Structure — Boda de Alma & Chava
 
-Wedding invitation website built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Framer Motion, and GSAP.
+Wedding invitation website built with Next.js 16, React 19, TypeScript, Tailwind CSS 4, Framer Motion, and GSAP. A cookie-gated invitation site with an RSVP system, collaborative YouTube playlist (one like per browser), photo upload, a post-RSVP digital invitation card, and an admin dashboard.
 
 ## Tech Stack
 
-| Category       | Technology                                              		          |
-| -------------- | ------------------------------------------------------------------------------ |
-| Framework      | [Next.js 16](https://nextjs.org) (App Router)           			  |
-| UI             | [React 19](https://react.dev) + [TypeScript 5](https://www.typescriptlang.org) |
-| Styling        | [Tailwind CSS 4](https://tailwindcss.com) (CSS, no JS config) 		  |
-| Animations     | [Framer Motion 12](https://www.framer.com/motion) + [GSAP 3](https://gsap.com) |
-| Database       | [Supabase](https://supabase.com) (PostgreSQL + RPC)     			  |
-| Emails         | [Resend](https://resend.com)                            			  |
-| File Upload    | [Cloudinary](https://cloudinary.com)                    			  |
-| Icons          | [Lucide React](https://lucide.dev)                      			  |
-| Fonts          | Google Fonts via `next/font` (Cormorant Garamond, Jost, Great Vibes) 	  |
+| Category       | Technology                                                                  |
+| -------------- | --------------------------------------------------------------------------- |
+| Framework      | [Next.js 16.2.7](https://nextjs.org) (App Router only; `proxy.ts` replaces middleware) |
+| UI             | [React 19.2.4](https://react.dev) + [TypeScript 5](https://www.typescriptlang.org) |
+| Styling        | [Tailwind CSS 4](https://tailwindcss.com) (CSS `@theme inline` — **no JS config**) |
+| Animations     | [Framer Motion 12.40](https://www.framer.com/motion) + [GSAP 3.15](https://gsap.com) (ScrollTrigger, dynamic-imported) |
+| Database       | [Supabase](https://supabase.com) (PostgreSQL + RPC functions, RLS permissive) |
+| Emails         | [Resend 6.12](https://resend.com)                                           |
+| File Upload    | [Cloudinary](https://cloudinary.com) (unsigned preset, client widget)       |
+| Video Search   | [YouTube Data API v3](https://developers.google.com/youtube/v3) (server route) |
+| Maps           | Google Maps Embed API                                                        |
+| QR / Screenshot| [`qrcode.react`](https://github.com/zpao/qrcode.react) (album QR) + [`html2canvas`](https://html2canvas.hertzen.com) (invitation PNG) |
+| ID generation  | [`nanoid`](https://github.com/ai/nanoid)                                     |
+| Icons          | [Lucide React](https://lucide.dev)                                          |
+| Fonts          | Google Fonts via `next/font` (Cormorant Garamond, Jost, Great Vibes)        |
+| Utilities      | `clsx`, `tailwind-merge`                                                     |
+
+> **Next.js 16 note:** This is *not* the Next.js you may know from training data. App Router only, no Pages Router; the middleware file is `src/proxy.ts` (the renamed/flavored middleware). Per `AGENTS.md`, consult `node_modules/next/dist/docs/` before writing framework code.
 
 ## Directory Structure
 
 ```
 wedproject/
 ├── .env.example                    # Environment variable template
-├── .env.local                      # Local environment variables (git-ignored)
-├── AGENTS.md                       # AI agent instructions for this project
-├── CLAUDE.md                       # Claude Code project instructions (→ AGENTS.md)
-├── next.config.ts                  # Next.js config (images, headers, security)
-├── package.json                    # Dependencies and scripts
-├── tsconfig.json                   # TypeScript configuration
-├── public/                         # Static assets (favicon, apple-icon)
+├── .env.local                      # Local env vars (git-ignored)
+├── AGENTS.md                       # AI agent instructions (→ CLAUDE.md re-exports)
+├── CLAUDE.md                       # Claude Code project instructions (@AGENTS.md)
+├── Plan de implementación.md       # FROZEN historical founding plan (see docs/COMPENDIUM.md)
+├── README.md                       # Project README
+├── PROJECT_STRUCTURE.md            # This file
+├── Tasks.md                        # Feature backlog / task list
+├── docs/
+│   ├── COMPENDIUM.md               # Deep project bible / change-planning playbook
+│   └── CLEANUP_LOG.md              # Bitácora de la limpieza de deuda técnica (WS1–WS11)
+├── next.config.ts                  # Next.js config (images, headers, allowedDevOrigins)
+├── eslint.config.mjs               # ESLint 9 config (eslint-config-next)
+├── postcss.config.mjs              # PostCSS (Tailwind v4 plugin)
+├── tsconfig.json                   # TS config (@/* → ./src/*, strict)
+├── vercel.json                     # Vercel: framework nextjs, region iad1, nosniff header
+├── package.json
+├── package-lock.json
+├── public/                         # Static assets (default Next.js SVGs only)
 │
-├── src/
-│   ├── data/
-│   │   └── wedding.ts              # Central wedding data (couple, dates, story, nav)
-│   │
-│   ├── lib/
-│   │   ├── config.ts               # App config (Supabase, Resend, YouTube, Cloudinary, env checks)
-│   │   ├── supabase.ts             # Supabase client (browser + server) + DB type definitions
-│   │   └── utils.ts                # Shared utilities (cn, formatDate, debounce, sleep)
-│   │
-│   ├── hooks/
-│   │   └── useCountdown.ts         # Custom hook — countdown timer to wedding date
-│   │
-│   ├── components/
-│   │   ├── sections/               # Full-page sections rendered on the homepage
-│   │   │   ├── HeroSection.tsx           # Full-screen hero with couple names + date
-│   │   │   ├── CountdownSection.tsx      # Flip-card countdown timer (days/hours/min/sec)
-│   │   │   ├── DetailsSection.tsx        # Event details cards (ceremony & reception)
-│   │   │   ├── StorySection.tsx          # Couple's timeline (GSAP ScrollTrigger)
-│   │   │   ├── DressCodeSection.tsx      # Dress code + color palette
-│   │   │   ├── LocationSection.tsx       # Venue cards + embedded Google Map
-│   │   │   ├── PhotoUploadSection.tsx    # Guest photo upload (Cloudinary + Google Photos)
-│   │   │   ├── RSVPSection.tsx           # RSVP form with companion management
-│   │   │   └── PlaylistSection.tsx       # Musical playlist (YouTube search + embed player + voting)
-│   │   │
-│   │   ├── shared/                 # Reusable layout/shell components
-│   │   │   ├── Navigation.tsx          # Fixed top nav with mobile hamburger menu
-│   │   │   ├── Footer.tsx              # Footer with couple names, quote, hashtag
-│   │   │   ├── SectionTitle.tsx        # Section heading with ornament decoration
-│   │   │   ├── PageAnimations.tsx      # Global GSAP animations (parallax only, no opacity hiding)
-│   │   │   ├── FloatingPetals.tsx      # Animated falling petal background particles
-│   │   │   ├── BokehBackground.tsx     # Bokeh light background effect
-│   │   │   ├── GoogleMapEmbed.tsx      # Google Maps embed wrapper
-│   │   │   ├── Skeleton.tsx            # Reusable shimmer skeleton placeholder + SkeletonText, SkeletonCard
-│   │   │   └── PageSkeleton.tsx        # Full-page skeleton mirror (shown during initial JS load)
-│   │   │
-│   │   └── ui/                     # Base UI primitives
-│   │       └── GlassCard.tsx             # Glassmorphism card (default/strong/subtle)
-│   │
-│   ├── app/                        # Next.js App Router
-│   │   ├── layout.tsx              # Root layout: fonts, metadata, SEO, schema.org
-│   │   ├── page.tsx                # Homepage — renders all sections in order
-│   │   ├── globals.css             # Global styles: Tailwind theme, CSS vars, animations
-│   │   │
-│   │   ├── admin/
-│   │   │   └── page.tsx                # Admin panel: guest stats, RSVP table, song moderation
-│   │   │
-│   │   ├── test/
-│   │   │   └── page.tsx                # Test/debug page (development utility)
-│   │   │
-│   │   └── api/                    # Route handlers (serverless API endpoints)
-│   │       ├── rsvp/
-│   │       │   └── route.ts            # POST/GET — save & query RSVP responses
-│   │       ├── songs/
-│   │       │   └── route.ts            # POST/PATCH — add songs & vote
-│   │       ├── youtube/search/
-│   │       │   └── route.ts            # GET — proxy YouTube search API
-│   │       └── test/guest/
-│   │           └── route.ts            # GET — test endpoint for guest data
-│   │
-│   └── hooks/                    # Custom React hooks
+├── supabase/
+│   ├── schema.sql                  # Base schema (idempotent post-WS8: renames guarded by DO/IF EXISTS)
+│   ├── migration_update.sql        # Idempotent supplement: song_likes + like/unlike RPCs + admin_settings
+│   └── migration_clean_admin_settings.sql  # Idempotent: scrub drifted admin_settings seed (WS8)
 │
-└── Tasks.md                      # Feature backlog / task list
+└── src/
+    ├── proxy.ts                    # Next.js 16 edge gate (auth + route protection)
+    │
+    ├── data/
+    │   ├── wedding.ts              # Content source-of-truth (couple, date, story, nav, hashtag)
+    │   └── couplePhotos.ts         # Photo manifest (hero + 5 story milestones; null defaults)
+    │
+    ├── hooks/
+    │   ├── useCountdown.ts             # Countdown timer hook (1s interval)
+    │   ├── useAdminFetch.ts            # Generic {data,loading,error,retry} fetch hook (WS6, admin pages)
+    │   └── usePrefersReducedMotion.ts  # SSR-safe prefers-reduced-motion boolean (GSAP spots)
+    │
+    ├── lib/
+    │   ├── auth.ts                 # Shared route-auth helpers: requireGuestOrAdmin / requireAdmin (WS5)
+    │   ├── config.ts               # Env config + feature flags (Supabase/Resend/YouTube/Maps)
+    │   ├── supabase.ts             # Browser + service-role clients, TS interfaces
+    │   └── utils.ts                # cn, es-MX date helpers, sanitizeInput, isValidEmail, debounce
+    │
+    ├── components/
+    │   ├── sections/               # Full-page sections + post-RSVP card
+    │   │   ├── HeroSection.tsx           # Full-screen hero, animated names + date
+    │   │   ├── CountdownSection.tsx      # Flip-card countdown (days/hours/min/sec)
+    │   │   ├── DetailsSection.tsx       # Ceremony & reception info cards
+    │   │   ├── StorySection.tsx         # Couple timeline (GSAP ScrollTrigger) — line grows to last node + glowing tip
+    │   │   ├── DressCodeSection.tsx     # Dress code + color palette
+    │   │   ├── LocationSection.tsx     # Venue cards + Google Maps embed
+    │   │   ├── PhotoUploadSection.tsx   # Cloudinary upload + album <QRCodeSVG/>
+    │   │   ├── RSVPSection.tsx          # RSVP form → renders InvitationCard on success
+    │   │   ├── PlaylistSection.tsx      # YouTube search + embed + one-vote-per-browser likes
+    │   │   └── InvitationCard.tsx       # Post-RSVP 600×820 card → html2canvas PNG download
+    │   │
+    │   ├── shared/                 # Reusable layout/shell components
+    │   │   ├── Navigation.tsx          # Fixed top nav + mobile drawer
+    │   │   ├── ScrollProgress.tsx      # Framer useScroll silver scroll-progress bar (top)
+    │   │   ├── Footer.tsx              # Names, hashtag
+    │   │   ├── SectionTitle.tsx        # Heading + ornament with draw-in (Framer whileInView, reduced-motion safe)
+    │   │   ├── PageAnimations.tsx      # GSAP multi-depth hero parallax + reduced-motion gate (no opacity hiding)
+    │   │   ├── Reveal.tsx              # Reusable Framer whileInView reveal wrapper (opacity + y/x), reduced-motion safe
+    │   │   ├── FloatingPetals.tsx      # Falling petal particles (canvas)
+    │   │   ├── BokehBackground.tsx     # Bokeh light background
+    │   │   ├── GoogleMapEmbed.tsx      # Maps embed wrapper
+    │   │   ├── Skeleton.tsx            # Shimmer placeholder + SkeletonText, SkeletonCard
+    │   │   └── PageSkeleton.tsx        # Full-page skeleton mirror (initial load)
+    │   │
+    │   └── ui/
+    │       └── GlassCard.tsx           # Glassmorphism card (default/strong/subtle) — motion.div, refined Framer hover lift, interactive opt-out
+    │
+    └── app/                        # Next.js App Router
+        ├── layout.tsx              # Root layout: fonts, metadata, SEO, schema.org JSON-LD
+        ├── page.tsx                # Homepage — PageSkeleton + shells + all sections + Footer
+        ├── global-error.tsx        # Root error boundary (custom UI overriding the builtin global-error)
+        ├── globals.css             # Tailwind theme, CSS vars, keyframes, FOUC fix, reduced-motion reset
+        ├── favicon.ico             # App-dir file convention: auto-serves /favicon.ico + <link rel="icon">
+        │
+        ├── admin/
+        │   ├── page.tsx            # Auth gate + tab switch + 3× useAdminFetch + mutation handlers (~238 lines post-WS6)
+        │   └── _components/        # Admin UI extracted from the former God component (WS6)
+        │       ├── AdminDashboard.tsx     # Stat grid + StatCard
+        │       ├── AdminGuestsTable.tsx   # Guests table + StatusBadge + inline actionError
+        │       ├── AdminSongsTable.tsx    # Songs table + SongStatusBadge + confirm modal
+        │       └── AdminMessages.tsx      # Guest message cards
+        │
+        ├── login/
+        │   └── page.tsx            # Guest login (password → /api/auth/login → redirect /)
+        │
+        ├── test/
+        │   └── page.tsx            # Dev-only integration test page (404 in prod)
+        │
+        └── api/                    # Route handlers (serverless)
+            ├── rsvp/
+            │   └── route.ts            # POST submit RSVP → submit_rsvp RPC (+ Resend email); GET status
+            ├── songs/
+            │   └── route.ts            # GET(?voterId) + POST + PATCH(like/unlike) + DELETE(admin)
+            ├── youtube/search/
+            │   └── route.ts            # GET — proxy YouTube Data API v3 search
+            ├── test/
+            │   ├── guest/route.ts      # Dev-only (404 in prod; also proxy-gated)
+            │   └── cloudinary/route.ts # Dev-only (404 in prod; also proxy-gated)
+            ├── auth/
+            │   └── login/route.ts      # POST {password} → sets site_auth cookie
+            └── admin/
+                ├── check/route.ts      # GET → {ok:true}/{ok:false}
+                ├── login/route.ts      # POST {password} → sets admin_auth cookie
+                ├── guests/route.ts     # GET → guests+companions+stats
+                │   └── [guestId]/
+                │       └── companions/
+                │           ├── route.ts                # POST — add companion (admin; resyncs num_companions)
+                │           └── [companionId]/route.ts  # DELETE — remove companion (admin; resyncs num_companions)
+                ├── songs/route.ts      # PATCH {songId,isApproved} → approve/reject (admin)
+                └── messages/route.ts    # GET → guest messages from guests.message column
 ```
+
+\* `layout.tsx` previously referenced `/apple-icon.png` in `metadata.icons`, but that file never existed (404 on iOS apple-touch-icon) — the `icons` block was removed in WS10. `/favicon.ico` is served (and its `<link rel="icon">` emitted) automatically by the `src/app/favicon.ico` file convention, so no `metadata.icons` block is needed. See COMPENDIUM §10 #11.
+
+## Auth & Access Model
+
+The real security boundary is **`src/proxy.ts`** (the Next 16 middleware), not Postgres RLS.
+
+- **Fail-closed:** if `INVITATION_CODE` or `ADMIN_PASSWORD` env vars are unset, **every** request returns `503` (`proxy.ts:15-21`).
+- **Whitelist (always allowed):** `/_next/*`, static asset extensions (png/jpg/css/js/woff…), `/api/auth/*`, `/login` (`proxy.ts:31-40`).
+- **Tier 1 — guest:** any path requires `site_auth` cookie `=== INVITATION_CODE` or `admin_auth` cookie `=== ADMIN_PASSWORD`; unauthenticated browser → redirect to `/login`, unauthenticated API → `401` (`proxy.ts:42-59`).
+- **Tier 2 — admin:** `/api/admin/*` (except `login`/`check`) and `DELETE /api/songs` require `admin_auth`; otherwise `401` (`proxy.ts:61-71`).
+- **Prod test block:** `/test` and `/api/test/*` return `404` when `NODE_ENV !== development` (`proxy.ts:23-29`).
+- **Cookies:** `site_auth` (30 days) and `admin_auth` (24h) — both httpOnly, `secure` in prod, `sameSite=lax`.
+
+RLS is intentionally permissive (`USING(TRUE)`/`WITH CHECK(TRUE)` on most public tables); server routes use the service-role key, which **bypasses RLS**. RLS is a secondary net, the proxy is the wall.
+
+## Schema & Migrations (`supabase/`)
+
+| File | Idempotent? | Defines |
+| ---- | ----------- | ------- |
+| `schema.sql` | **Yes** (post-WS8) — renames wrapped in `DO $$ … IF EXISTS` blocks | `guests`, `companions`, `songs` (YouTube cols), `updated_at` trigger, `submit_rsvp`, `vote_song` (deprecated), base RLS |
+| `migration_update.sql` | **Yes** — wraps renames in `DO $$ … IF EXISTS` blocks | `admin_settings` (real-valued seed), `song_likes` (one per browser), `like_song`/`unlike_song`/`has_liked_song`, indices, refreshed RLS |
+| `migration_clean_admin_settings.sql` | **Yes** (WS8) — `DELETE` drift + `INSERT … ON CONFLICT DO UPDATE` truth | Bridge for already-drifted DBs: scrubs `2025`/Emerson/Plancarte rows and re-seeds `2026-09-12T18:00:00`/Alma & Chava/`2026-08-15`/`{"limit": 2}`/`almaychava` |
+
+**Fresh-DB run order:** `schema.sql` → `migration_update.sql` (or, for an already-migrated DB, just `migration_update.sql`). For a DB that already holds drifted `admin_settings` rows, also run `migration_clean_admin_settings.sql` once. See `docs/COMPENDIUM.md §4` for full column/proc detail.
+
+> ℹ️ `admin_settings` seeds **real** values (`couple_names`=Alma & Chava, `wedding_date`=2026-09-12) post-WS8. The app still ignores this table — content comes from `src/data/wedding.ts`. Stale placeholder rows on existing DBs are cleared by `migration_clean_admin_settings.sql`.
 
 ## Data Flow
 
-### Wedding Data (`src/data/wedding.ts`)
-Single source of truth for all wedding-related content. Exported constants:
-- **`couple`** — Names and display name for the couple
-- **`weddingDate`** — The wedding date (used by countdown, hero, metadata)
-- **`weddingDetails`** — Ceremony and reception info (time, location, coordinates)
-- **`ourStory`** — Timeline events for the couple's story
-- **`dressCode`** — Dress code rules, color palette, suggestions
-- **`navigation`** — Nav links (auto-populates the header)
+### Content source-of-truth (`src/data/wedding.ts`)
+Not the database. Exported constants used across the UI:
+- `couple` — names (`Alma`, `Chava`, display `A & C`)
+- `weddingDate` — `new Date("2026-09-12T18:00:00")` (countdown, hero, metadata, InvitationCard)
+- `weddingDetails` — ceremony (Parroquia San Cristóbal, Acapulco) + reception (Jardín de Fiestas El Patio II, La Bocana), coords
+- `ourStory` (with optional `image?` per milestone, rendered via `next/image` when set), `dressCode` (Cocktail Elegante silver/white/black), `hashtag` (`"25AnivAlmaYChava"`), `navigation` (8 links, no Countdown)
+
+### Photo manifest (`src/data/couplePhotos.ts`)
+Typed skeleton with `null` defaults for the hero photo + 5 `ourStory` milestone photos. `HeroSection` and `StorySection` render these gracefully (dormant when `null`, active when the client delivers the photos — just update the manifest).
 
 ### Configuration (`src/lib/config.ts`)
-Environment-driven feature toggles:
-- **Supabase** — Database connectivity check
-- **Resend** — Email delivery check
-- **YouTube** — Music API check
-- **Cloudinary** — Photo upload check
-- **Google Photos** — Shared album link
+Env-driven wrappers + boolean feature flags: `isSupabaseConfigured`, `isSupabaseServerConfigured`, `isResendConfigured`, `isGoogleMapsConfigured`, `isYouTubeConfigured`. `resendConfig.fromEmail` defaults to `SEND_FROM_EMAIL`.
 
-### Supabase (`src/lib/supabase.ts`)
-- Browser client (for client components)
-- Server client (for API routes, uses service role key)
-- TypeScript interfaces: `Guest`, `Companion`, `Song`
+### Supabase clients (`src/lib/supabase.ts`)
+- `supabase` — browser client (anon key) for client components
+- `createSupabaseServerClient()` — service-role client for API routes (bypasses RLS)
+- TS interfaces: `Guest`, `Companion`, `Song` (with `youtube_video_id`)
 
 ## Sections (Home Page Order)
 
-| #  | Section            | ID            | Key Features                                    |
-| -- | ------------------ | ------------- | ------------------------------------------------ |
-| 1  | HeroSection        | `#hero`       | Full-screen, animated names, date, scroll hint    |
-| 2  | CountdownSection   | `#countdown`  | Live countdown (days/hours/min/sec)               |
-| 3  | DetailsSection     | `#details`    | 4 info cards: ceremony date, time, reception      |
-| 4  | StorySection       | `#story`      | Timeline with GSAP ScrollTrigger animations       |
-| 5  | DressCodeSection   | `#dresscode`  | Color palette, suggestions for men/women          |
-| 6  | LocationSection    | `#location`   | Venue cards, Google Maps links, embedded map      |
-| 7  | PhotoUploadSection | `#photos`     | Cloudinary upload widget + Google Photos album    |
-| 8  | RSVPSection        | `#rsvp`       | Full RSVP form, companions, dietary, messaging    |
-| 9  | PlaylistSection    | `#playlist`   | YouTube search, embedded player, manual add, vote on songs, skeleton loading |
+| #  | Section            | ID            | Key Features                                            |
+| -- | ------------------ | ------------- | ------------------------------------------------------- |
+| 1  | HeroSection        | `#hero`       | Full-screen, animated names, date, scroll hint           |
+| 2  | CountdownSection   | `#countdown`  | Live countdown (days/hours/min/sec)                      |
+| 3  | DetailsSection     | `#details`    | Ceremony & reception info cards                          |
+| 4  | StorySection       | `#story`      | Timeline with GSAP ScrollTrigger                         |
+| 5  | DressCodeSection   | `#dresscode`  | Color palette, attire suggestions                        |
+| 6  | LocationSection    | `#location`   | Venue cards, Google Maps links, embedded map             |
+| 7  | PhotoUploadSection | `#photos`     | Cloudinary upload widget + album `<QRCodeSVG/>`           |
+| 8  | RSVPSection        | `#rsvp`       | RSVP form + companion mgmt → **InvitationCard** on success |
+| 9  | PlaylistSection    | `#playlist`   | YouTube search, embed, one-vote-per-browser likes        |
+
+**InvitationCard** is not a section in `page.tsx` — it renders inside RSVPSection's success screen (html2canvas PNG download).
+
+> The entire site is gated: an unauthenticated visitor is redirected to `/login` before reaching any section.
 
 ## API Endpoints
 
-| Method | Route                    | Description                                |
-| ------ | ------------------------ | ------------------------------------------ |
-| POST   | `/api/rsvp`              | Submit RSVP response                       |
-| GET    | `/api/rsvp?email=...`    | Check guest RSVP status                    |
-| POST   | `/api/songs`             | Add a song request                         |
-| PATCH  | `/api/songs`             | Vote on a song                             |
-| GET    | `/api/youtube/search?q=` | Search YouTube for videos                  |
-| DELETE | `/api/songs?songId=`     | Delete a song (admin)                      |
-| PATCH  | `/api/admin/songs`       | Approve/reject a song (admin)              |
+| Method | Route                        | Access       | Description                                       |
+| ------ | ---------------------------- | ------------ | ------------------------------------------------- |
+| POST   | `/api/auth/login`            | Public       | `{password}` → sets `site_auth` cookie            |
+| POST   | `/api/rsvp`                  | Guest/Admin  | Submit RSVP → `submit_rsvp` RPC (+ Resend email)  |
+| GET    | `/api/rsvp?email=`           | Guest/Admin  | Check RSVP status by email                         |
+| GET    | `/api/songs?voterId=`        | Guest/Admin  | List songs, enriched with `isLikedByVoter`         |
+| POST   | `/api/songs`                 | Guest/Admin  | Add a song (defaults to `is_approved=false`)       |
+| PATCH  | `/api/songs`                 | Guest/Admin  | `{songId,voterId,isLike}` → `like_song`/`unlike_song` |
+| DELETE | `/api/songs?songId=`         | **Admin**    | Delete a song (proxy-gated)                        |
+| GET    | `/api/youtube/search?q=`     | Guest/Admin  | Proxy YouTube Data API v3 search                   |
+| GET    | `/api/admin/check`           | Public*      | Returns whether `admin_auth` is set                 |
+| POST   | `/api/admin/login`           | Public*      | `{password}` → sets `admin_auth` cookie            |
+| GET    | `/api/admin/guests`          | **Admin**    | Guests + companions + aggregate stats              |
+| POST   | `/api/admin/guests/[guestId]/companions` | **Admin** | Add companion (no MAX limit); resyncs `num_companions` |
+| DELETE | `/api/admin/guests/[guestId]/companions/[companionId]` | **Admin** | Remove companion; resyncs `num_companions` |
+| PATCH  | `/api/admin/songs`           | **Admin**    | `{songId,isApproved}` → approve/reject             |
+| GET    | `/api/admin/messages`        | **Admin**    | Messages from `guests.message` column              |
+| GET    | `/api/test/guest`            | Dev only     | Test endpoint (404 in prod)                        |
+| GET    | `/api/test/cloudinary`       | Dev only     | Test endpoint (404 in prod)                        |
+
+\* `/api/admin/login` and `/api/admin/check` are whitelisted by the proxy so the login flow itself can function.
+
+> 📝 `POST /api/admin/login` returns `{ok:true}` (not `{success:true}`); `POST /api/auth/login` returns `{success:true}`. `GET /api/admin/guests` does its own in-route `admin_auth` cookie check; `/api/admin/messages` relies entirely on the proxy gate.
+
+## Admin Dashboard (`/admin`)
+
+Four tabs. Post-WS6, `src/app/admin/page.tsx` is the auth gate + tab switch + wiring (~238 lines); the UI lives in `src/app/admin/_components/` (`AdminDashboard`, `AdminGuestsTable`, `AdminSongsTable`, `AdminMessages`) and data fetching goes through `src/hooks/useAdminFetch.ts`:
+- **Dashboard** — total/confirmed/declined/pending/companions stats
+- **Invitados** — sortable guest table with expandable companion rows
+- **Canciones** — song moderation (approve/reject via `/api/admin/songs`, delete via `/api/songs`); reads the **public** `/api/songs`
+- **Mensajes** — guest messages (via `/api/admin/messages`)
+
+Mutations (approve/delete) refetch from the server (no optimistic client state); deletes confirm via a styled modal; errors surface inline (no `alert()`).
 
 ## Design System
 
-### Color Palette (defined in `globals.css`)
-| Token          | Hex        | Usage                    |
-| -------------- | ---------- | ------------------------ |
-| `--ivory`      | `#FFFFF0`  | Background               |
-| `--champagne`  | `#F7E7CE`  | Accents, borders         |
-| `--blush`      | `#F4C2C2`  | Gradient stops           |
-| `--rose`       | `#E8A0BF`  | Error states             |
-| `--burgundy`   | `#722F37`  | Primary text, buttons    |
-| `--gold`       | `#C5A55A`  | Ornaments, highlights    |
-| `--sage`       | `#9CAF88`  | Success states           |
+### Color Palette (CSS vars in `globals.css`)
+| Token            | Hex       | Usage                |
+| ---------------- | --------- | -------------------- |
+| `--ivory`        | `#F6F5F8` | Cool pearl background |
+| `--champagne`    | `#EAE8EE` | Accents, borders     |
+| `--blush`        | `#E6DEE5` | Gradient stops (mauve) |
+| `--rose`         | `#D7CBD9` | Error states (mauve)  |
+| `--burgundy`     | `#722F37` | Primary text/buttons |
+| `--silver`       | `#8A8F98` | Silver ornaments (steel) |
+| `--sage`         | `#9CAF88` | Success states       |
+
+Derived: `--burgundy-light #8C3A42`, `--silver-light #C5CBD3` (platinum), `--silver-dark #5C6168` (pewter), `--sage-light #B5C9A3`, `--foreground #3D3B40`. Mapped into Tailwind via `@theme inline`.
 
 ### Typography
-| Role       | Font               | Classes           |
-| ---------- | ------------------ | ----------------- |
-| Display    | Cormorant Garamond | `.text-display`   |
-| Body       | Jost               | `.text-body`      |
-| Script     | Great Vibes        | `.text-script`    |
+| Role    | Font               | Classes        |
+| ------- | ------------------ | -------------- |
+| Display | Cormorant Garamond | `.text-display` |
+| Body    | Jost               | `.text-body`    |
+| Script  | Great Vibes        | `.text-script`  |
 
 ### Glassmorphism
-Three variants via CSS classes: `.glass`, `.glass-strong`, `.glass-subtle` — also exposed through the `GlassCard` component.
+`.glass`, `.glass-strong`, `.glass-subtle` — also via the `<GlassCard variant="…">` component.
 
 ### Animations
-- **Framer Motion** — Section reveals, card hover effects, button micro-interactions
-- **GSAP + ScrollTrigger** — Parallax on hero, timeline animations (no longer sets `opacity: 0` on sections)
-- **CSS keyframes** — `gradientShift` (background), `float` (decorative), `petalFall` (petals), `shimmer` (gold accents), `skeletonShimmer` (loading placeholders)
+- **Global backdrop** — a single `fixed` `bg-romantic` layer in `page.tsx` paints the rich gradient across the whole site (seamless, no scroll-time edge); `<body>` uses `bg-ivory` as the no-JS fallback. Login/admin carry their own full-screen gradient.
+- **Framer Motion** — reusable `<Reveal>` (opacity 0→1 + y 18→0, `ease [0.16,1,0.3,1]`, ~0.6s, `once`-true, list stagger ~0.08s) drives section/card entrances; `SectionTitle` draws in (ornament pop + divider scaleX + heading rise); the silver `ScrollProgress` top bar uses `useScroll`. `<GlassCard>` is a `motion.div` with a refined hover lift (`y:-8, scale:1.02`, spring) + CSS box-shadow bloom; `interactive={false}` opts out (e.g. the Google Map card).
+- **GSAP + ScrollTrigger** — multi-depth hero parallax (each sub-element at its own `yPercent` under one `#hero` trigger), and the `StorySection` timeline whose silver line is height-measured to the final node and grows over the whole track with a glowing comet tip leading it; both dynamically imported for SSR and gated by `usePrefersReducedMotion()`. No `opacity:0` on `<section>` wrappers.
+- **CSS keyframes** — `gradientShift`, `float`, `petalFall`, `shimmer`, `skeletonShimmer`; clamped to ~0.01ms under `prefers-reduced-motion: reduce`.
+- **Reduced motion** — split: the CSS block above stops ambient CSS motion; Framer spots use `useReducedMotion()` and render in place; GSAP spots short-circuit via `usePrefersReducedMotion()`. The `FloatingPetals` canvas is JS-driven and not covered. Content always stays visible.
+- **FOUC fix** — `section { opacity: 1 !important }`; `PageSkeleton` crossfades out after a 100ms `isPageReady` flag.
 
 ## Environment Variables
 
-See `.env.example` for the full list. Key variables:
+See `.env.example`. Key variables (✱ = required for the proxy to boot):
 
-| Variable                                   | Required | Used By           |
-| ------------------------------------------ | -------- | ----------------- |
-| `NEXT_PUBLIC_SUPABASE_URL`                 | Yes      | RSVP, Playlist    |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY`            | Yes      | RSVP, Playlist    |
-| `SUPABASE_SERVICE_ROLE_KEY`                | Yes      | Server API routes |
-| `RESEND_API_KEY`                           | No       | Confirmation email|
-| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`        | No       | Photo uploads     |
-| `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`     | No       | Photo uploads     |
-| `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`      | No       | Photo album link  |
-| `NEXT_PUBLIC_ADMIN_PASSWORD`               | No       | Admin panel       |
+| Variable                                   | Required | Used By                          |
+| ------------------------------------------ | -------- | -------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`                 | Yes      | Clients                          |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`            | Yes      | Browser client                   |
+| `SUPABASE_SERVICE_ROLE_KEY`                | Yes      | Server routes (bypasses RLS)      |
+| `INVITATION_CODE`                          | Yes ✱    | Guest login / proxy               |
+| `ADMIN_PASSWORD`                           | Yes ✱    | Admin login / proxy               |
+| `RESEND_API_KEY`                           | No       | Confirmation emails               |
+| `SEND_FROM_EMAIL`                          | No       | Resend "from" address             |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`          | No       | Maps embed                         |
+| `YOUTUBE_API_KEY`                          | No       | Playlist search (server route)     |
+| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`        | No       | Photo upload                       |
+| `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET`     | No       | Photo upload                       |
+| `NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL`       | No       | Album link + QR                    |
+| `NEXT_PUBLIC_SITE_URL`                     | No       | `metadataBase`, SEO                |
+
+> 🔒 `.env.example` uses a **placeholder** for `YOUTUBE_API_KEY`. A real key was leaked and committed in **git history** in a prior session. This repo intentionally **does not** rewrite git history; the file itself is now clean. The remaining action is **manual and user-owned**: rotate the key in the Google Cloud Credential console and update the deployed value on Vercel. See `docs/COMPENDIUM.md §10 #5`.
 
 ## Scripts
 
 ```bash
-npm run dev      # Start development server (localhost:3000)
-npm run build    # Production build
-npm run start    # Start production server
-npm run lint     # Run ESLint
+npm run dev             # Dev server (localhost:3000)
+npm run build           # Production build
+npm run start           # Production server
+npm run lint            # ESLint
+npm run typecheck       # tsc --noEmit  (gate; added WS1)
+npm run typecheck:build # tsc --noEmit with the build tsconfig (gate; added WS1)
 ```
 
 ## Notes
 
-- All sections use `"use client"` (client components) for interactivity
-- GSAP is dynamically imported (`import("gsap")`) to avoid SSR issues
-- **Loading strategy** — `PageSkeleton` mirrors the real layout during initial JS load (100ms), then crossfades via opacity transition. Sections are visible by default (`section { opacity: 1 !important }`) so GSAP never hides already-rendered content. HeroSection renders immediately (no `mounted` guard). PlaylistSection shows skeleton cards while fetching song data.
-- The countdown target date is **October 18, 2026** (configured in `src/data/wedding.ts`)
-- The site is in Spanish (`lang="es"`) with `es-ES` locale for date formatting
-- Admin panel is accessible at `/admin` (password-protected)
-- Image remote patterns allow `img.youtube.com` (YouTube), `*.supabase.co`, and `*.res.cloudinary.com`
+- All sections are `"use client"` client components for interactivity.
+- GSAP is dynamically imported (`await import("gsap")`) to avoid SSR issues.
+- **Loading strategy** — `PageSkeleton` mirrors the real layout during initial JS load (100ms), then crossfades via opacity. Sections stay visible (`section { opacity: 1 !important }`) so GSAP never hides rendered content. HeroSection renders immediately (no `mounted` guard). PlaylistSection shows skeleton cards while fetching.
+- **Wedding date:** September 12, 2026 (`src/data/wedding.ts`). The countdown, hero, metadata JSON-LD, and InvitationCard all read from here. The RSVP confirmation email (`api/rsvp/route.ts`) now reads `wedding.ts` content too — no hardcoded "2025" (fixed WS2).
+- Site is Spanish (`lang="es"`); date locale is **`es-MX`** everywhere (admin, InvitationCard, hero, and `utils.ts` helpers) — normalized WS7.
+- Admin panel at `/admin` (password-protected); guest entry requires the invitation code at `/login`.
+- `next.config.ts` remote image patterns allow `img.youtube.com`, `*.supabase.co`, `*.res.cloudinary.com`.
+- `vercel.json` pins region `iad1` (match to your Supabase region) and a global `nosniff` header.
+- For the deep project bible and change-planning recipes, see `docs/COMPENDIUM.md`.

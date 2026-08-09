@@ -66,11 +66,8 @@ export default function CountdownSection() {
           transition={{ delay: 0.5, duration: 1 }}
           className="text-center mt-16"
         >
-          <p className="text-script text-gold text-3xl md:text-4xl">
+          <p className="text-script text-silver text-3xl md:text-4xl">
             {couple.name1} & {couple.name2}
-          </p>
-          <p className="text-body text-burgundy/60 mt-4 max-w-lg mx-auto italic">
-            "El amor es paciente, es bondadoso. El amor todo lo espera."
           </p>
         </motion.div>
       </div>

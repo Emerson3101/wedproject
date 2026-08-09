@@ -18,7 +18,7 @@ export default function Navigation() {
           {/* Logo */}
           <a
             href="#hero"
-            className="text-script text-2xl text-gold hover:text-gold-light transition-colors"
+            className="text-script text-2xl text-silver hover:text-silver-light transition-colors"
           >
             {couple.displayName}
           </a>
@@ -29,7 +29,9 @@ export default function Navigation() {
               <li key={item.href}>
                 <a
                   href={item.href}
-                  className="text-body text-sm text-burgundy/80 hover:text-burgundy transition-colors uppercase tracking-widest"
+                  className="relative text-body text-sm text-burgundy/80 hover:text-burgundy transition-colors uppercase tracking-widest
+                    after:absolute after:-bottom-1 after:left-0 after:h-px after:w-full after:origin-center after:scale-x-0
+                    hover:after:scale-x-100 after:bg-silver after:transition-transform after:duration-300"
                 >
                   {item.label}
                 </a>
@@ -52,10 +54,10 @@ export default function Navigation() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             className="glass-strong mx-4 mt-2 p-6 md:hidden"
           >
             <ul className="flex flex-col gap-4">

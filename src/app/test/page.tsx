@@ -329,7 +329,7 @@ export default function TestPage() {
             <button
               onClick={runCloudCheck}
               disabled={loading !== null}
-              className="px-4 py-2 rounded-xl bg-gold text-ivory text-sm disabled:opacity-50"
+              className="px-4 py-2 rounded-xl bg-silver text-ivory text-sm disabled:opacity-50"
             >
               {loading === "cloudCheck" ? "Checking…" : "1. Check config"}
             </button>

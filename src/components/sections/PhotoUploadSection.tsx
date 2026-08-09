@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
 import {
@@ -8,7 +8,6 @@ import {
   ImagePlus,
   CheckCircle,
   ExternalLink,
-  X,
   Loader2,
   QrCode,
 } from "lucide-react";
@@ -17,18 +16,31 @@ import GlassCard from "@/components/ui/GlassCard";
 import { cloudinaryConfig, googlePhotosConfig } from "@/lib/config";
 
 /* ============================================
-   TYPE PARA EL WIDGET DE CLOUDINARY
+   TIPOS PARA EL WIDGET DE CLOUDINARY
+   Reemplazan los `any` previos con formas reales.
    ============================================ */
+interface CloudinaryWidget {
+  open: () => void;
+  destroy: () => void;
+}
+
 interface CloudinaryWindow extends Window {
-  cloudinary: {
+  cloudinary?: {
     createUploadWidget: (
-      options: Record<string, any>,
-      callback: (error: any, result: any) => void
-    ) => {
-      open: () => void;
-      destroy: () => void;
-    };
+      options: Record<string, unknown>,
+      callback: (error: Error | null, result: CloudinaryUploadResult) => void
+    ) => CloudinaryWidget;
   };
+}
+
+interface CloudinaryUploadInfo {
+  public_id: string;
+  secure_url: string;
+}
+
+interface CloudinaryUploadResult {
+  event: string;
+  info?: CloudinaryUploadInfo;
 }
 
 /* ============================================
@@ -40,47 +52,9 @@ export default function PhotoUploadSection() {
   >([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
-  const [widget, setWidget] = useState<any>(null);
+  const [isWidgetReady, setIsWidgetReady] = useState(false);
   const [widgetError, setWidgetError] = useState<string | null>(null);
-
-  // Cargar el script de Cloudinary y crear el widget
-  useEffect(() => {
-    if (!cloudinaryConfig.cloudName || !cloudinaryConfig.uploadPreset) {
-      console.warn(
-        "[Cloudinary] Not configured — set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET"
-      );
-      return;
-    }
-
-    const cloudinaryWindow = window as unknown as CloudinaryWindow;
-
-    // Si ya está cargado, inicializar directamente
-    if (cloudinaryWindow.cloudinary) {
-      initWidget(cloudinaryWindow);
-      return;
-    }
-
-    // Cargar script dinámicamente
-    const script = document.createElement("script");
-    script.src = "https://upload-widget.cloudinary.com/global/all.js";
-    script.async = true;
-    script.onload = () => {
-      if (cloudinaryWindow.cloudinary) {
-        initWidget(cloudinaryWindow);
-      } else {
-        console.error("[Cloudinary] Script loaded but window.cloudinary not found");
-      }
-    };
-    script.onerror = () => {
-      console.error("[Cloudinary] Failed to load upload widget script");
-      setWidgetError("No se pudo cargar el widget de subida");
-    };
-    document.head.appendChild(script);
-
-    return () => {
-      widget?.destroy();
-    };
-  }, []);
+  const widgetRef = useRef<CloudinaryWidget | null>(null);
 
   const initWidget = useCallback((cw: CloudinaryWindow) => {
     if (!cw.cloudinary || !cloudinaryConfig.cloudName || !cloudinaryConfig.uploadPreset) {
@@ -103,24 +77,24 @@ export default function PhotoUploadSection() {
           showAdvancedOptions: false,
           styles: {
             palette: {
-              window: "#FFFFF0",
-              windowBorder: "#F7E7CE",
-              tabIcon: "#C5A55A",
+              window: "#F6F5F8",
+              windowBorder: "#EAE8EE",
+              tabIcon: "#8A8F98",
               otherIcons: "#722F37",
-              windowBackground: "#FFFFF0",
+              windowBackground: "#F6F5F8",
               tabIconSelected: "#722F37",
               textColor: "#722F37",
-              textAccent: "#C5A55A",
+              textAccent: "#8A8F98",
               actionButton: "#722F37",
               actionButtonMenu: "#722F37",
               actionButtonActive: "#8C3A42",
-              actionButtonDisabled: "#F7E7CE",
-              cancelButton: "#F7E7CE",
-              cancelButtonHover: "#DCAE96",
+              actionButtonDisabled: "#EAE8EE",
+              cancelButton: "#EAE8EE",
+              cancelButtonHover: "#D7CBD9",
             },
           },
         },
-        (error: any, result: any) => {
+        (error, result) => {
           setIsUploading(false);
 
           if (error) {
@@ -128,7 +102,7 @@ export default function PhotoUploadSection() {
             return;
           }
 
-          if (result.event === "success") {
+          if (result.event === "success" && result.info) {
             const info = result.info;
             setUploadedPhotos((prev) => [
               ...prev,
@@ -139,26 +113,69 @@ export default function PhotoUploadSection() {
             ]);
             setUploadSuccess(true);
             setTimeout(() => setUploadSuccess(false), 4000);
-          } else if (result.event === "close") {
-            console.log("[Cloudinary] Widget closed");
           }
+          // 'close' y otros eventos no requieren acción: setIsUploading(false) ya ocurrió.
         }
       );
 
-      setWidget(uploadWidget);
-      console.log("[Cloudinary] Widget initialized successfully");
+      widgetRef.current = uploadWidget;
+      setIsWidgetReady(true);
     } catch (err) {
       console.error("[Cloudinary] Failed to create upload widget:", err);
       setWidgetError("Error al inicializar el widget: verifica tu configuración de Cloudinary");
     }
   }, []);
 
-  const handleUpload = useCallback(() => {
-    if (widget) {
-      setIsUploading(true);
-      widget.open();
+  // Cargar el script de Cloudinary y crear el widget
+  useEffect(() => {
+    if (!cloudinaryConfig.cloudName || !cloudinaryConfig.uploadPreset) {
+      console.warn(
+        "[Cloudinary] Not configured — set NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET"
+      );
+      return;
     }
-  }, [widget]);
+
+    const cloudinaryWindow = window as unknown as CloudinaryWindow;
+
+    // Si el script ya está cargado, inicializar en un microtask: los setState
+    // del widget deben correr en un callback, no de forma sincrónica dentro
+    // del cuerpo del efecto (evita cascadas de re-render).
+    if (cloudinaryWindow.cloudinary) {
+      queueMicrotask(() => initWidget(cloudinaryWindow));
+      return;
+    }
+
+    // Cargar script dinámicamente
+    const script = document.createElement("script");
+    script.src = "https://upload-widget.cloudinary.com/global/all.js";
+    script.async = true;
+    script.onload = () => {
+      if (cloudinaryWindow.cloudinary) {
+        initWidget(cloudinaryWindow);
+      } else {
+        console.error("[Cloudinary] Script loaded but window.cloudinary not found");
+      }
+    };
+    script.onerror = () => {
+      console.error("[Cloudinary] Failed to load upload widget script");
+      setWidgetError("No se pudo cargar el widget de subida");
+    };
+    document.head.appendChild(script);
+
+    return () => {
+      // Destruir el widget real (vía ref) al desmontar. Antes el cleanup cerraba sobre
+      // el estado `widget` inicial (null), así que el widget nunca se destruía: filtraba.
+      widgetRef.current?.destroy();
+      widgetRef.current = null;
+    };
+  }, [initWidget]);
+
+  const handleUpload = useCallback(() => {
+    if (widgetRef.current) {
+      setIsUploading(true);
+      widgetRef.current.open();
+    }
+  }, []);
 
   return (
     <section id="photos" className="section-padding relative z-20">
@@ -197,11 +214,11 @@ export default function PhotoUploadSection() {
 
             <motion.button
               onClick={handleUpload}
-              disabled={!widget || isUploading}
-              whileHover={!!widget && !isUploading ? { scale: 1.03 } : {}}
-              whileTap={!!widget && !isUploading ? { scale: 0.97 } : {}}
+              disabled={!isWidgetReady || isUploading}
+              whileHover={isWidgetReady && !isUploading ? { scale: 1.03 } : {}}
+              whileTap={isWidgetReady && !isUploading ? { scale: 0.97 } : {}}
               className={`btn-outline inline-flex items-center gap-2 ${
-                !widget || isUploading ? "opacity-50 cursor-not-allowed" : ""
+                !isWidgetReady || isUploading ? "opacity-50 cursor-not-allowed" : ""
               }`}
             >
               {isUploading ? (
@@ -217,11 +234,13 @@ export default function PhotoUploadSection() {
               )}
             </motion.button>
 
-            {!cloudinaryConfig.cloudName && (
+            {!cloudinaryConfig.cloudName ? (
               <p className="text-xs text-rose mt-3">
                 Cloudinary no está configurado
               </p>
-            )}
+            ) : widgetError ? (
+              <p className="text-xs text-rose mt-3">{widgetError}</p>
+            ) : null}
           </GlassCard>
 
           {/* Opción 2: Google Photos */}
@@ -229,7 +248,7 @@ export default function PhotoUploadSection() {
             <div className="mb-6">
               <motion.div
                 whileHover={{ scale: 1.05 }}
-                className="w-20 h-20 rounded-full bg-gradient-to-br from-gold to-gold-light flex items-center justify-center mx-auto shadow-lg"
+                className="w-20 h-20 rounded-full bg-gradient-to-br from-silver to-silver-light flex items-center justify-center mx-auto shadow-lg"
               >
                 <ExternalLink size={36} className="text-ivory" />
               </motion.div>
@@ -288,7 +307,7 @@ export default function PhotoUploadSection() {
                 className="p-4 bg-white rounded-2xl shadow-lg border-2 border-champagne"
               >
                 <QRCodeSVG
-                  value={googlePhotosConfig.albumUrl || "https://photos.app.goo.gl/QAvUYFHzY6XZTfAC9"}
+                  value={googlePhotosConfig.albumUrl}
                   size={180}
                   level="H"
                   bgColor="#FFFFFF"
@@ -297,7 +316,7 @@ export default function PhotoUploadSection() {
               </motion.div>
 
               <motion.a
-                href={googlePhotosConfig.albumUrl || "https://photos.app.goo.gl/QAvUYFHzY6XZTfAC9"}
+                href={googlePhotosConfig.albumUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 whileHover={{ scale: 1.03 }}
@@ -343,6 +362,7 @@ export default function PhotoUploadSection() {
                   transition={{ delay: index * 0.1 }}
                   className="aspect-square rounded-xl overflow-hidden border-2 border-champagne shadow-md"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- previsualización de subida de Cloudinary, relación de aspecto variable con object-cover en cuadrado fijo; next/image fill requeriría reestructurar el contenedor. */}
                   <img
                     src={photo.url}
                     alt={`Foto subida ${index + 1}`}

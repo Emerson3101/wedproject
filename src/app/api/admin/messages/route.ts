@@ -1,6 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
+/* ============================================
+   API: GET /api/admin/messages
+   Lista los mensajes de los invitados (RSVP con mensaje no vacío).
+
+   NOTA DE SEGURIDAD (COMPENDIUM §3): esta ruta NO repite la verificación
+   de cookie dentro del handler — confía por diseño en `src/proxy.ts`, que
+   ya bloquea `/api/admin/*` (salvo `/login` y `/check`) si no hay sesión
+   de admin. Es la única excepción al patrón `requireAdmin()` que usan las
+   demás rutas admin; se mantiene así intencionalmente.
+   ============================================ */
 export async function GET() {
   try {
     const supabase = createClient(

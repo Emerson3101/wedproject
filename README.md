@@ -1,6 +1,6 @@
 # Emerson Plancarte — Wedding Website
 
-A modern, elegant wedding invitation and management website built for Alma & Chava's October 2026 wedding. Features a complete RSVP system with companion management, collaborative playlist powered by YouTube, photo upload functionality, and an administrative dashboard.
+A modern, elegant wedding invitation and management website built for Alma & Chava's September 2026 wedding. Features a complete RSVP system with companion management, collaborative playlist powered by YouTube, photo upload functionality, and an administrative dashboard.
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@ A modern, elegant wedding invitation and management website built for Alma & Cha
 - **Our Story Timeline** — Interactive vertical timeline showing relationship milestones with GSAP scroll animations
 - **Dress Code Guide** — Color palette visualization and attire recommendations for men and women
 - **Interactive Map** — Google Maps embeds for both venues with custom styling
-- **RSVP System** — Complete form with dynamic companion management (up to 5 companions), dietary restrictions, and personal messages
+- **RSVP System** — Complete form with dynamic companion management (up to 2 companions), and personal messages
 - **Collaborative Playlist** — YouTube-powered song requests with search, preview, and voting system
 - **Photo Upload** — Cloudinary integration for guest photo sharing
 - **Digital Invitation Card** — Generates a printable invitation card after RSVP confirmation
@@ -39,7 +39,7 @@ A modern, elegant wedding invitation and management website built for Alma & Cha
 ### Admin Features
 
 - **Dashboard** — Real-time statistics showing total RSVPs, confirmed, declined, pending, and companion counts
-- **Guest Management** — Sortable table with expandable rows showing companion details, dietary restrictions, and messages
+- **Guest Management** — Sortable table with expandable rows showing companion details and messages, plus inline add/remove of companions per guest
 - **Song Moderation** — Approve/reject song submissions, delete inappropriate content, view vote counts
 - **Data Export** — All data accessible via API for external analysis
 
@@ -82,19 +82,19 @@ Always refer to `node_modules/next/dist/docs/` for current API documentation rat
 All colors are defined as CSS variables in `src/app/globals.css`:
 
 ```css
---ivory: #FFFFF0;        /* Background base */
---champagne: #F7E7CE;    /* Secondary backgrounds, borders */
---blush: #F4C2C2;        /* Pink accents */
---rose: #E8A0BF;         /* Error states, emphasis */
---burgundy: #722F37;     /* Primary text, buttons */
---gold: #C5A55A;         /* Ornaments, highlights */
+--ivory: #F6F5F8;        /* Cool pearl background base */
+--champagne: #EAE8EE;    /* Cool platinum — accents, borders */
+--blush: #E6DEE5;        /* Cool mauve-mist accents */
+--rose: #D7CBD9;         /* Cool mauve — emphasis */
+--burgundy: #722F37;     /* Primary text, buttons (warm anchor) */
+--silver: #8A8F98;       /* Mid cool steel — silver accents (plata) */
 --sage: #9CAF88;         /* Success states, nature */
 ```
 
 Derived variants:
 - `--burgundy-light: #8C3A42`
-- `--gold-light: #D4BA7A`
-- `--gold-dark: #A68B45`
+- `--silver-light: #C5CBD3`   /* bright platinum */
+- `--silver-dark: #5C6168`    /* deep pewter */
 - `--sage-light: #B5C9A3`
 
 ### Typography
@@ -151,7 +151,7 @@ Both buttons feature hover lift animation and smooth transitions.
 
 ### Background Animation
 
-The `.bg-romantic` class applies an animated gradient background that shifts through ivory, champagne, and blush tones over a 15-second loop.
+The `.bg-romantic` class applies an animated gradient background that pans through cool pearl, platinum, and mauve-mist tones over a 15-second loop.
 
 ---
 
@@ -185,7 +185,8 @@ wedproject/
 │   │       │   ├── check/route.ts      # GET: Verify admin session
 │   │       │   ├── login/route.ts      # POST: Admin login
 │   │       │   ├── guests/route.ts     # GET: Fetch guests
-│   │       │   └── songs/route.ts      # PATCH: Approve/reject songs
+│   │       │   ├── songs/route.ts      # PATCH: Approve/reject songs
+│   │       │   └── messages/route.ts   # GET: Fetch guest messages
 │   │       │
 │   │       ├── auth/
 │   │       │   └── login/route.ts      # POST: Guest login
@@ -193,12 +194,9 @@ wedproject/
 │   │       ├── youtube/
 │   │       │   └── search/route.ts     # GET: Search YouTube videos
 │   │       │
-│   │       ├── test/
-│   │       │   ├── guest/route.ts      # Test guest operations
-│   │       │   └── cloudinary/route.ts # Test Cloudinary uploads
-│   │       │
-│   │       └── check/
-│   │           └── route.ts            # Health check
+│   │       └── test/
+│   │           ├── guest/route.ts      # Test guest operations
+│   │           └── cloudinary/route.ts # Test Cloudinary uploads
 │   │
 │   ├── components/
 │   │   ├── sections/                   # Page sections
@@ -210,7 +208,8 @@ wedproject/
 │   │   │   ├── LocationSection.tsx
 │   │   │   ├── PhotoUploadSection.tsx
 │   │   │   ├── RSVPSection.tsx
-│   │   │   └── PlaylistSection.tsx
+│   │   │   ├── PlaylistSection.tsx
+│   │   │   └── InvitationCard.tsx     # Post-RSVP download card (html2canvas)
 │   │   │
 │   │   ├── shared/                     # Reusable components
 │   │   │   ├── Navigation.tsx
@@ -241,10 +240,10 @@ wedproject/
 │   ├── schema.sql                      # Database schema + RLS policies
 │   └── migration_update.sql            # Migration helpers
 │
-├── src/proxy.ts                        # Next.js middleware for auth
+├── src/proxy.ts                        # Next.js 16 auth/edge gate (replaces middleware)
 ├── package.json
 ├── tsconfig.json
-├── tailwind.config.ts
+├── vercel.json                         # Vercel config (region iad1, nosniff header)
 └── .env.example
 ```
 
@@ -284,16 +283,32 @@ Edit `.env.local` with your credentials. See [Environment Configuration](#enviro
 
 1. Log into your Supabase dashboard
 2. Navigate to SQL Editor
-3. Copy the contents of `supabase/schema.sql`
-4. Execute the SQL script
+3. Copy the contents of `supabase/schema.sql` and run it, **then** copy and
+   run `supabase/migration_update.sql`
+
+> ✅ **Run order & idempotency (post-WS8):** `schema.sql` is **idempotent** —
+> the Spotify→YouTube column renames (`spotify_id → youtube_video_id`,
+> `cover_url → thumbnail_url`) are now wrapped in `DO $$ ... IF EXISTS` blocks,
+> so it no longer errors on a fresh or already-migrated database.
+> `migration_update.sql` is also idempotent (same guards) and adds the
+> `song_likes` table + `like_song` / `unlike_song` / `has_liked_song`
+> procedures that `schema.sql` does **not** define.
+>
+> **For a fresh database:** run `schema.sql`, then `migration_update.sql`.
+> **For an already-migrated database:** run only `migration_update.sql`
+> (it's self-guarding and idempotent). **For a DB with stale `admin_settings`
+> rows** (`2025`, Emerson/Plancarte placeholders from before WS8), run
+> `migration_clean_admin_settings.sql` once.
 
 This creates:
 - `guests` table with RSVP data
 - `companions` table for guest companions
 - `songs` table for playlist
+- `song_likes` table for one-vote-per-browser like tracking
 - `admin_settings` table for site configuration
 - Row Level Security policies
-- Helper functions (`submit_rsvp`, `vote_song`)
+- Helper functions (`submit_rsvp`, `vote_song` *(deprecated — see COMPENDIUM §10 #13; live path is `like_song`/`unlike_song`)*, `like_song`, `unlike_song`,
+  `has_liked_song`)
 
 Verify tables were created:
 
@@ -313,6 +328,10 @@ npm start
 
 # Linting
 npm run lint
+
+# Type checking (gate; added WS1)
+npm run typecheck
+npm run typecheck:build
 ```
 
 The development server runs on `http://localhost:3000`.
@@ -350,7 +369,7 @@ SEND_FROM_EMAIL=noreply@yourdomain.com
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your-api-key
 
 # YouTube Data API (Playlist Search)
-YOUTUBE_API_KEY=your-api-key
+YOUTUBE_API_KEY=your-youtube-api-key
 
 # Cloudinary (Photo Storage)
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
@@ -374,6 +393,7 @@ import { isSupabaseConfigured, isResendConfigured } from '@/lib/config';
 - The middleware in `src/proxy.ts` performs a "fail closed" check: if `INVITATION_CODE` or `ADMIN_PASSWORD` are not set, all requests return 503
 - Test routes (`/test`, `/api/test/*`) automatically return 404 in production (`NODE_ENV !== 'development'`)
 - Never commit `.env.local` to version control
+- **Leaked `YOUTUBE_API_KEY` (rotate manually):** a real key was committed to git history in a prior session. The tracked files are now clean (`.env.example` holds a placeholder, no real `AIza…` string survives in `src/` or root config). This repo intentionally **does not** rewrite git history, so the only remaining remediation is **manual and user-owned**: rotate the key in the Google Cloud Credential console and update the deployed value on Vercel. See `docs/COMPENDIUM.md §10 #5`.
 
 ---
 
@@ -381,7 +401,9 @@ import { isSupabaseConfigured, isResendConfigured } from '@/lib/config';
 
 ### Schema Overview
 
-The database consists of four main tables with Row Level Security (RLS) enabled.
+The database consists of five main tables with Row Level Security (RLS)
+enabled. (`song_likes` is created only by `migration_update.sql` — see the
+run-order note under [Database Setup](#database-setup) above.)
 
 #### guests Table
 
@@ -391,10 +413,10 @@ The database consists of four main tables with Row Level Security (RLS) enabled.
 | `name` | VARCHAR(255) | NOT NULL | Guest full name |
 | `email` | VARCHAR(255) | NOT NULL, UNIQUE | Guest email for confirmation |
 | `phone` | VARCHAR(50) | NULL | Optional phone number |
-| `invitation_code` | VARCHAR(50) | NOT NULL | Group guests by invitation batch |
+| `invitation_code` | VARCHAR(50) | NOT NULL | Group guests by invitation batch (schema default is `'almaychava'`) |
 | `status` | ENUM | NOT NULL | `pending`, `confirmed`, `declined` |
 | `num_companions` | INTEGER | NOT NULL | Number of accompanying guests (0-5) |
-| `dietary_restrictions` | TEXT | NULL | Dietary requirements |
+| `dietary_restrictions` | TEXT | NULL | Dietary requirements (schema column retained; no longer collected by the public RSVP form, so it is `NULL` for new rows) |
 | `message` | TEXT | NULL | Personal message to couple |
 | `side` | ENUM | NULL | `bride`, `groom` (optional) |
 | `confirmed_at` | TIMESTAMPTZ | NULL | When RSVP was confirmed |
@@ -408,7 +430,7 @@ The database consists of four main tables with Row Level Security (RLS) enabled.
 | `id` | UUID | PRIMARY KEY | Unique companion identifier |
 | `guest_id` | UUID | FOREIGN KEY | References `guests.id` (CASCADE DELETE) |
 | `name` | VARCHAR(255) | NOT NULL | Companion name |
-| `dietary_restrictions` | TEXT | NULL | Companion dietary needs |
+| `dietary_restrictions` | TEXT | NULL | Companion dietary needs (schema column retained; admin add-companion route inserts `NULL`) |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Creation timestamp |
 
 #### songs Table
@@ -433,12 +455,35 @@ The database consists of four main tables with Row Level Security (RLS) enabled.
 | `value` | JSONB | NOT NULL | Setting value as JSON |
 | `updated_at` | TIMESTAMPTZ | NOT NULL | Last update timestamp |
 
-Default settings:
+Default settings (seeded by `migration_update.sql:69-75`):
 - `wedding_date` — Ceremony date and timezone
 - `couple_names` — Names of the couple
 - `rsvp_deadline` — RSVP deadline configuration
-- `max_companions` — Maximum companions per guest
+- `max_companions` — Maximum companions per guest (2 for the public RSVP form; admin can add beyond this limit via the companion management routes)
 - `site_status` — Site maintenance and RSVP status
+
+> ✅ **Seed fixed (WS8):** the seeded defaults now match this wedding —
+> `couple_names` is `"Alma"` / `"Chava"`, `wedding_date` is
+> `2026-09-12T18:00:00`, and `rsvp_deadline` is `2026-08-15`. The app still
+> does **not** read this table for its content source-of-truth; the couple,
+> date, and venues come from `src/data/wedding.ts`. A DB that was seeded
+> before WS8 holds the old `2025` / Emerson / Plancarte placeholders — run
+> `migration_clean_admin_settings.sql` once to scrub and re-seed them.
+
+#### song_likes Table
+
+Tracks one like per song per browser so a guest can't stuff the ballot box.
+Created only by `migration_update.sql` (not `schema.sql`).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique like identifier |
+| `voter_id` | VARCHAR(64) | NOT NULL | Per-browser voter id (`voter_<uuid>`) |
+| `song_id` | UUID | FOREIGN KEY | References `songs.id` (CASCADE DELETE) |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Creation timestamp |
+
+Unique constraint `song_likes_voter_song_unique` on `(voter_id, song_id)`
+enforces the one-like-per-browser rule at the database level.
 
 ### Stored Procedures
 
@@ -471,6 +516,41 @@ SELECT vote_song(p_song_id := 'uuid', p_delta := 1);  -- Upvote
 SELECT vote_song(p_song_id := 'uuid', p_delta := -1); -- Downvote
 ```
 
+`votes` is clamped to a minimum of `0` (`GREATEST(0, votes + p_delta)`). Note
+that the current like/unlike flow (below) updates `votes` independently of
+`vote_song`, so `vote_song` is effectively legacy/unused by the playlist UI.
+
+#### like_song
+
+Like a song for a given browser. Inserts a `song_likes` row and increments
+`votes`; on a duplicate `(voter_id, song_id)` it catches the unique violation
+and returns `'already_liked'` (idempotent) instead of incrementing again.
+
+```sql
+SELECT like_song(p_voter_id := 'voter_<uuid>', p_song_id := 'uuid');
+-- returns TEXT: 'liked' or 'already_liked'
+```
+
+#### unlike_song
+
+Remove a like for a given browser. Deletes the `song_likes` row and
+decrements `votes` (clamped to `0`); returns `'unliked'` or `'not_liked'`.
+
+```sql
+SELECT unlike_song(p_voter_id := 'voter_<uuid>', p_song_id := 'uuid');
+-- returns TEXT: 'unliked' or 'not_liked'
+```
+
+#### has_liked_song
+
+Check whether a voter has already liked a song (used to hydrate the
+heart state on load).
+
+```sql
+SELECT has_liked_song(p_voter_id := 'voter_<uuid>', p_song_id := 'uuid');
+-- returns BOOLEAN
+```
+
 ### Row Level Security Policies
 
 RLS is enabled on all tables. Key policies:
@@ -478,9 +558,17 @@ RLS is enabled on all tables. Key policies:
 - **guests**: Guests can view their own records by email; anyone can insert; service role has full access
 - **companions**: Anyone can view and add; service role has full access
 - **songs**: Anyone can view, add, and vote; service role has full access
+- **song_likes**: Anyone can view and insert a like; service role has full access
 - **admin_settings**: Service role only
 
 The service role key bypasses RLS, used by server-side API routes.
+
+> ℹ️ **Auth boundary note:** RLS policies here are intentionally permissive
+> (`USING (TRUE)` / `WITH CHECK (TRUE)` on most public tables). The real
+> access boundary is the edge gate in `src/proxy.ts`, which rejects any
+> unauthenticated visitor before they reach an API route; once a request
+> reaches a server route, it uses the service-role key, which bypasses RLS
+> anyway. RLS is therefore a secondary safety net, not the primary wall.
 
 ---
 
@@ -490,12 +578,13 @@ The service role key bypasses RLS, used by server-side API routes.
 
 #### POST /api/auth/login
 
-Authenticates a guest with the invitation code.
+Authenticates a guest with the invitation code. The login page sends the code
+in a `password` field.
 
 **Request:**
 ```json
 {
-  "code": "boda2025"
+  "password": "almaychava"
 }
 ```
 
@@ -506,14 +595,17 @@ Authenticates a guest with the invitation code.
 }
 ```
 
-Sets `site_auth` cookie on success.
+Sets the `site_auth` cookie (httpOnly, secure in production, `sameSite=lax`,
+maxAge 30 days) on success.
 
 **Response (401):**
 ```json
 {
-  "error": "Invalid invitation code"
+  "error": "Contraseña de acceso incorrecta."
 }
 ```
+
+Missing `INVITATION_CODE` env var → `503`; empty body → `400`.
 
 ### RSVP Endpoints
 
@@ -530,9 +622,9 @@ Submit a new RSVP or update an existing one.
   "status": "confirmed",
   "numCompanions": 2,
   "companions": [
-    { "name": "Jane Doe", "dietary": null }
+    { "name": "Jane Doe" }
   ],
-  "dietary": "Vegetarian",
+  "dietary": null,
   "message": "Excited to celebrate!"
 }
 ```
@@ -696,11 +788,37 @@ Authenticate as administrator.
 **Response (200):**
 ```json
 {
-  "success": true
+  "ok": true
 }
 ```
 
-Sets `admin_auth` cookie.
+Sets the `admin_auth` cookie (httpOnly, secure in production, `sameSite=lax`,
+maxAge 24 hours).
+
+#### GET /api/admin/messages
+
+Fetch the personal messages guests left in their RSVP. Messages are derived
+from the `guests.message` column — there is no separate `messages` table.
+Only rows where `message` is not null and not empty are returned, newest
+first. This route performs **no in-route auth check**; it relies on the
+`proxy.ts` admin gate (requires `admin_auth` cookie — see `src/proxy.ts:62-71`).
+
+**Response (200):**
+```json
+{
+  "ok": true,
+  "messages": [
+    {
+      "id": "uuid",
+      "guestName": "John Doe",
+      "guestEmail": "john@example.com",
+      "message": "Excited to celebrate!",
+      "status": "confirmed",
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+```
 
 #### GET /api/admin/guests
 
@@ -771,14 +889,21 @@ The middleware (`src/proxy.ts`) runs on every request:
 
 ### Voter Identification
 
-The playlist system uses a browser-specific voter ID stored in localStorage:
+The playlist's like/unlike system uses a browser-specific voter ID so guests
+can "like" each song once per browser without logging in:
 
 ```typescript
 const voterId = localStorage.getItem('wedding_voter_id');
-// If not exists: voter_id = 'voter_' + crypto.randomUUID()
+// If not exists: 'voter_' + crypto.randomUUID()
 ```
 
-This allows one vote per song per browser without requiring authentication.
+`voterId` is sent to `PATCH /api/songs` (`{ songId, voterId, isLike }`),
+which calls the `like_song` / `unlike_song` RPCs. A unique constraint on
+`(voter_id, song_id)` in the `song_likes` table enforces the one-like-per-
+browser rule at the DB level — `like_song` returns `'already_liked'` (and
+does **not** increment) on a duplicate, so re-likes are idempotent. `GET
+/api/songs?voterId=...` hydrates each song's `isLikedByVoter` flag for the
+heart icon on initial load.
 
 ---
 
@@ -799,11 +924,21 @@ page.tsx (Home)
 ├── StorySection (Timeline)
 ├── DressCodeSection (Attire guide)
 ├── LocationSection (Maps)
-├── PhotoUploadSection (Cloudinary)
+├── PhotoUploadSection (Cloudinary + QR to album)
 ├── RSVPSection (Form + confirmation)
+│   └── InvitationCard (Rendered post-RSVP: html2canvas PNG download)
 ├── PlaylistSection (YouTube playlist)
 └── Footer (Credits)
 ```
+
+> ℹ️ The **InvitationCard** is not a top-level section in `page.tsx`; it is
+> rendered inside `RSVPSection.tsx`'s success screen after a guest submits.
+> Note the two capture/QR libs serve different components: **InvitationCard**
+> uses **`html2canvas` only** to rasterize a hidden 600×820 card and download
+> it as a PNG — it does *not* use `qrcode.react`. **PhotoUploadSection** is
+> the component that uses **`qrcode.react`** (`QRCodeSVG`, error correction
+> level `H`) to render a QR code that deep-links guests to the shared Google
+> Photos album.
 
 ### Animation Strategy
 
@@ -877,9 +1012,17 @@ Sortable table with columns:
 - Message (truncated)
 - Date (formatted)
 
-**Expandable Rows:** Click any guest to see their accompanying guests with:
-- Name
-- Dietary restrictions (if any)
+**Expandable Rows:** Click any guest to see their accompanying guests, plus inline
+companion management:
+- Companion name (and a per-companion delete button)
+- An inline add-companion form (input + button) at the bottom of the row
+
+The add/remove calls hit two admin-only routes
+(`POST /api/admin/guests/[guestId]/companions` and
+`DELETE /api/admin/guests/[guestId]/companions/[companionId]`). These routes do
+**not** enforce the public 2-companion limit (the admin can add as many as the
+couple wants by exception) and resync `guests.num_companions` with the live row
+count on every mutation.
 
 ### Songs Tab
 
@@ -901,6 +1044,23 @@ Management interface for playlist:
 - Date
 - Actions (Approve/Reject, Delete)
 
+### Messages Tab
+
+Read-only view of the personal messages guests leave on the RSVP form. Data
+comes from `GET /api/admin/messages`, which derives messages from the
+`guests.message` column (no separate messages table). Each row shows:
+
+- Guest name
+- Guest email
+- RSVP status (Confirmed/Declined/Pending badge)
+- The message body
+- Submission date (newest first)
+
+> The admin page fetches its song list from the **public** `GET /api/songs`
+> endpoint (not `/api/admin/songs`) — that admin-songs route is `PATCH`-only
+> for approve/reject. Message storage lives in the `guests` table, so a guest
+> who re-submits an RSVP overwrites their prior message.
+
 ---
 
 ## Development
@@ -917,8 +1077,8 @@ http://localhost:3000
 # Run linter
 npm run lint
 
-# Type check (if using tsc)
-npx tsc --noEmit
+# Type check (WS1 script)
+npm run typecheck
 ```
 
 ### Code Style
@@ -954,7 +1114,9 @@ Common issues and solutions:
 | GSAP animations not working | Check that sections are visible; GSAP enhances, not controls |
 | Database errors | Verify Supabase URL and keys; check RLS policies |
 | Cookie not setting | Ensure HTTPS in production; cookies require secure context |
-| YouTube search failing | Check API key quota; verify `YOUTUBE_API_KEY` is set |
+| YouTube search failing | Check API key quota; verify `YOUTUBE_API_KEY` is set (and that you rotated it in Google Cloud if you used the previously-leaked value — see Security Notes) |
+| Confirmation email shows wrong date | Fixed in WS2 — `api/rsvp/route.ts` now reads `src/data/wedding.ts` (2026); if you see "2025" you're on a pre-WS2 build |
+| DB seed shows Emerson/Plancarte, 2025 | Fixed in WS8 — seeds now use 12 Sept 2026 / Alma & Chava / `almaychava`. For an already-seeded DB, run `migration_clean_admin_settings.sql` once |
 
 ---
 
@@ -975,6 +1137,13 @@ vercel
 # Deploy to production
 vercel --prod
 ```
+
+### Vercel Configuration
+
+The repo includes a `vercel.json` that pins the framework (`nextjs`), the
+deployment **region `iad1`** (Washington, D.C. — keep this consistent with
+where your Supabase project is hosted to minimize DB latency), and a global
+`X-Content-Type-Options: nosniff` response header.
 
 ### Environment Variables in Vercel
 

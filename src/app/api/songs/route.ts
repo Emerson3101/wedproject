@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase";
-import { cookies } from "next/headers";
+import { requireGuestOrAdmin, requireAdmin } from "@/lib/auth";
 import { sanitizeInput } from "@/lib/utils";
 
 /* ============================================
@@ -10,27 +10,8 @@ import { sanitizeInput } from "@/lib/utils";
    ============================================ */
 export async function GET(request: NextRequest) {
   try {
-    const invitationCode = process.env.INVITATION_CODE;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!invitationCode || !adminPassword) {
-      return NextResponse.json(
-        { error: "Servicio no disponible por error de configuración del servidor." },
-        { status: 503 }
-      );
-    }
-
-    // Verificar sesión (invitado o admin)
-    const cookieStore = await cookies();
-    const siteCookie = cookieStore.get("site_auth")?.value;
-    const adminCookie = cookieStore.get("admin_auth")?.value;
-
-    if (siteCookie !== invitationCode && adminCookie !== adminPassword) {
-      return NextResponse.json(
-        { error: "No autorizado." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireGuestOrAdmin();
+    if (!auth.ok) return auth.response;
 
     const supabase = createSupabaseServerClient();
     const { searchParams } = new URL(request.url);
@@ -86,27 +67,8 @@ export async function GET(request: NextRequest) {
    ============================================ */
 export async function POST(request: NextRequest) {
   try {
-    const invitationCode = process.env.INVITATION_CODE;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!invitationCode || !adminPassword) {
-      return NextResponse.json(
-        { error: "Servicio no disponible por error de configuración del servidor." },
-        { status: 503 }
-      );
-    }
-
-    // Verificar sesión (invitado o admin)
-    const cookieStore = await cookies();
-    const siteCookie = cookieStore.get("site_auth")?.value;
-    const adminCookie = cookieStore.get("admin_auth")?.value;
-
-    if (siteCookie !== invitationCode && adminCookie !== adminPassword) {
-      return NextResponse.json(
-        { error: "No autorizado." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireGuestOrAdmin();
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
     const { title, artist, youtubeVideoId, thumbnailUrl, addedBy } =
@@ -120,7 +82,9 @@ export async function POST(request: NextRequest) {
 
     const cleanTitle = sanitizeInput(title?.trim());
     const cleanArtist = sanitizeInput(artist?.trim());
-    const cleanAddedBy = sanitizeInput(addedBy?.trim() || "Invitado");
+    // Fallback 'Guest' alinea con el default del esquema (schema.sql) y el valor que
+    // envía el cliente. La UI optimista muestra "Tú" por sesión (no se persiste).
+    const cleanAddedBy = sanitizeInput(addedBy?.trim() || "Guest");
 
     if (!cleanTitle || !cleanArtist) {
       return NextResponse.json(
@@ -182,27 +146,8 @@ export async function POST(request: NextRequest) {
    ============================================ */
 export async function PATCH(request: NextRequest) {
   try {
-    const invitationCode = process.env.INVITATION_CODE;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!invitationCode || !adminPassword) {
-      return NextResponse.json(
-        { error: "Servicio no disponible por error de configuración del servidor." },
-        { status: 503 }
-      );
-    }
-
-    // Verificar sesión (invitado o admin)
-    const cookieStore = await cookies();
-    const siteCookie = cookieStore.get("site_auth")?.value;
-    const adminCookie = cookieStore.get("admin_auth")?.value;
-
-    if (siteCookie !== invitationCode && adminCookie !== adminPassword) {
-      return NextResponse.json(
-        { error: "No autorizado." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireGuestOrAdmin();
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
     const { songId, voterId, isLike } = body as {
@@ -286,26 +231,10 @@ export async function PATCH(request: NextRequest) {
    ============================================ */
 export async function DELETE(request: NextRequest) {
   try {
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminPassword) {
-      console.error("Config Error: ADMIN_PASSWORD is not set in environment.");
-      return NextResponse.json(
-        { error: "Servicio no disponible por error de configuración del servidor." },
-        { status: 503 }
-      );
-    }
-
-    // Verificar sesión administrativa
-    const cookieStore = await cookies();
-    const adminCookie = cookieStore.get("admin_auth")?.value;
-
-    if (adminCookie !== adminPassword) {
-      return NextResponse.json(
-        { error: "No autorizado. Requiere sesión de administrador." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAdmin({
+      unauthorized: "No autorizado. Requiere sesión de administrador.",
+    });
+    if (!auth.ok) return auth.response;
 
     const { searchParams } = new URL(request.url);
     const songId = searchParams.get("songId");

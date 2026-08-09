@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local scratch / session logs
+/.playwright-mcp/
+
+# original RAW photos (cleaned copies live in public/images/couple/)
+/couple_photos/
+
+# personal launcher scripts (dev-machine specific)
+/start_claude.bat

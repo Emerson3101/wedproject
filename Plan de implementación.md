@@ -1,3 +1,22 @@
+> ## ⚠️ FROZEN — documento histórico de fundación
+> Este es el plan original de implementación (fundacional), escrito antes de que el proyecto
+> evolucionara. **Está desactualizado** respecto al código actual en varios puntos importantes:
+>
+> - La playlist era **Spotify** (hoy es **YouTube** — ver `src/app/api/youtube/search` y la
+>   tabla `songs` migrada de `spotify_id`→`youtube_video_id`).
+> - Suponía **Next.js 14** + autenticación JS de Google Maps (hoy **Next.js 16** con
+>   `src/proxy.ts` como puerta de autenticación edge, y Google Maps **Embed**).
+> - No contempla el sistema de auth por cookies (`site_auth`/`admin_auth`), el panel `/admin`,
+>   la tarjeta de invitación (`InvitationCard`), ni la votación de canciones con
+>   `song_likes` (un like por canción por navegador).
+>
+> **Consérvese solo como registro del razonamiento fundacional.** Para el estado actual y real
+> del proyecto — verificado contra el código con citas `archivo:línea` — consulta
+> **`docs/COMPENDIUM.md`** (la "biblia" del proyecto) y `README.md` / `PROJECT_STRUCTURE.md`.
+> Si este plan y el COMPENDIUM discrepan, **el COMPENDIUM (y el código) ganan**.
+
+---
+
 Plan de implementación completo del sitio web de boda: 8 secciones principales, sistema de diseño glassmorphism con paleta romántica, stack tecnológico completo basado en Next.js y Supabase, esquema de base de datos y 5 fases de desarrollo estimadas en 12 días.
 Plan completo de implementación
 

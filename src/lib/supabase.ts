@@ -56,8 +56,8 @@ export interface Song {
   id: string;
   title: string;
   artist: string;
-  youtube_video_id: string;
-  thumbnail_url: string;
+  youtube_video_id: string | null;
+  thumbnail_url: string | null;
   added_by: string;
   votes: number;
   is_approved: boolean;

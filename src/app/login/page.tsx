@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Lock, Heart } from "lucide-react";
 import GlassCard from "@/components/ui/GlassCard";
 import FloatingPetals from "@/components/shared/FloatingPetals";
+import { weddingDate } from "@/data/wedding";
+import { formatSectionDate } from "@/lib/utils";
 
 export default function LoginPage() {
   const [password, setPassword] = useState("");
@@ -69,21 +71,21 @@ export default function LoginPage() {
             <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center text-burgundy animate-pulse">
               <Lock className="w-6 h-6" />
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gold flex items-center justify-center text-white text-[10px]">
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-silver flex items-center justify-center text-white text-[10px]">
               <Heart className="w-3.5 h-3.5 fill-current" />
             </div>
           </div>
         </div>
 
         {/* Nombres e Introducción */}
-        <h1 className="text-script text-5xl text-gold mb-1">
+        <h1 className="text-script text-5xl text-silver mb-1">
           Alma & Chava
         </h1>
         <p className="text-display text-lg uppercase tracking-widest text-burgundy font-medium mb-2">
           Nuestra Boda
         </p>
         <div className="ornament-line justify-center mb-8">
-          <span className="text-gold text-xs">❦</span>
+          <span className="text-silver text-xs">❦</span>
         </div>
 
         <p className="text-body text-burgundy/70 text-sm leading-relaxed mb-8">
@@ -101,7 +103,7 @@ export default function LoginPage() {
                 if (error) setError(null);
               }}
               placeholder="Ingresa el código aquí"
-              className="w-full px-5 py-4 rounded-full border border-champagne bg-white/40 focus:outline-none focus:ring-2 focus:ring-gold focus:border-transparent text-body text-burgundy text-center placeholder-burgundy/40 text-lg transition-all tracking-widest"
+              className="w-full px-5 py-4 rounded-full border border-champagne bg-white/40 focus:outline-none focus:ring-2 focus:ring-silver focus:border-transparent text-body text-burgundy text-center placeholder-burgundy/40 text-lg transition-all tracking-widest"
               disabled={loading}
               autoFocus
             />
@@ -131,7 +133,7 @@ export default function LoginPage() {
 
         {/* Footer del card */}
         <div className="mt-8 text-[11px] text-burgundy/50 font-body uppercase tracking-wider">
-          18 de Octubre, 2026
+          {formatSectionDate(weddingDate)}
         </div>
       </GlassCard>
     </div>

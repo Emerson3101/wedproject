@@ -14,9 +14,9 @@ export const supabaseConfig = {
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || "",
 } as const;
 
-export const resendConfig = {
-  apiKey: process.env.RESEND_API_KEY || "",
-  fromEmail: process.env.SEND_FROM_EMAIL || "boda@wedding.com",
+export const gmailConfig = {
+  user: process.env.GMAIL_USER || "",
+  appPassword: process.env.GMAIL_APP_PASSWORD || "",
 } as const;
 
 export const googleMapsConfig = {
@@ -27,9 +27,6 @@ export const youtubeConfig = {
   apiKey: process.env.YOUTUBE_API_KEY || "",
 } as const;
 
-export const invitationCode =
-  process.env.INVITATION_CODE || "boda2025";
-
 /* Check if a feature requiring backend is available */
 export const isSupabaseConfigured =
   supabaseConfig.url !== "" && supabaseConfig.anonKey !== "";
@@ -37,7 +34,7 @@ export const isSupabaseConfigured =
 export const isSupabaseServerConfigured =
   isSupabaseConfigured && supabaseConfig.serviceRoleKey !== "";
 
-export const isResendConfigured = resendConfig.apiKey !== "";
+export const isGmailConfigured = gmailConfig.user !== "" && gmailConfig.appPassword !== "";
 
 export const isGoogleMapsConfigured = googleMapsConfig.apiKey !== "";
 
@@ -48,8 +45,16 @@ export const cloudinaryConfig = {
   uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "",
 } as const;
 
+// Single source of truth for the fallback Google-Photos album URL.
+// Referenced once from `googlePhotosConfig.albumUrl` below — previously this
+// literal was duplicated inline in PhotoUploadSection (dead fallback, since
+// config guarantees a non-empty albumUrl). Components read
+// `googlePhotosConfig.albumUrl` only.
+export const DEFAULT_GOOGLE_PHOTOS_ALBUM_URL =
+  "https://photos.app.goo.gl/QAvUYFHzY6XZTfAC9";
+
 export const googlePhotosConfig = {
   albumUrl:
     process.env.NEXT_PUBLIC_GOOGLE_PHOTOS_ALBUM_URL ||
-    "https://photos.app.goo.gl/QAvUYFHzY6XZTfAC9",
+    DEFAULT_GOOGLE_PHOTOS_ALBUM_URL,
 } as const;

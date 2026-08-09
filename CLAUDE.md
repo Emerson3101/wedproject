@@ -1,1 +1,2 @@
 @AGENTS.md
+To preserve quality of thought and code, every major breakthrough and reasoning shall be reported on a markdown file until the final task is complete, every time autocompact is used, call upon this file to restore context

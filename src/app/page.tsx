@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Navigation from "@/components/shared/Navigation";
+import ScrollProgress from "@/components/shared/ScrollProgress";
 import FloatingPetals from "@/components/shared/FloatingPetals";
 import BokehBackground from "@/components/shared/BokehBackground";
 import PageAnimations from "@/components/shared/PageAnimations";
@@ -12,6 +13,7 @@ import HeroSection from "@/components/sections/HeroSection";
 import CountdownSection from "@/components/sections/CountdownSection";
 import DetailsSection from "@/components/sections/DetailsSection";
 import StorySection from "@/components/sections/StorySection";
+import PhotoGallerySection from "@/components/sections/PhotoGallerySection";
 import DressCodeSection from "@/components/sections/DressCodeSection";
 import LocationSection from "@/components/sections/LocationSection";
 import RSVPSection from "@/components/sections/RSVPSection";
@@ -52,6 +54,17 @@ export default function Home() {
       </div>
 
       {/* Contenido real — siempre visible para GSAP/ScrollTrigger */}
+      {/* Fondo romántico global — fijo a viewport, rico y continuo.
+          Una sola instancia del gradiente detrás de toda la página
+          elimina el corte entre el hero y el countdown (antes el hero
+          tenía su propia copia recortada). BokehBackground (z-0) y
+          FloatingPetals (z-10) se pintan sobre él; las secciones (z-20)
+          continúan transparentes sobre el mismo fondo. */}
+      <div
+        aria-hidden
+        className="fixed inset-0 -z-10 bg-romantic pointer-events-none"
+      />
+
       {/* Fondos animados — globales */}
       <BokehBackground />
       <FloatingPetals />
@@ -60,6 +73,7 @@ export default function Home() {
       <PageAnimations />
 
       {/* Navegación */}
+      <ScrollProgress />
       <Navigation />
 
       {/* Secciones */}
@@ -67,6 +81,7 @@ export default function Home() {
       <CountdownSection />
       <DetailsSection />
       <StorySection />
+      <PhotoGallerySection />
       <DressCodeSection />
       <LocationSection />
       <PhotoUploadSection />

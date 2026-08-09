@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS guests (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
   phone VARCHAR(50),
-  invitation_code VARCHAR(50) NOT NULL DEFAULT 'boda2025',
+  invitation_code VARCHAR(50) NOT NULL DEFAULT 'almaychava',
   status guest_status NOT NULL DEFAULT 'pending',
   num_companions INTEGER NOT NULL DEFAULT 0,
   dietary_restrictions TEXT,
@@ -68,34 +68,62 @@ CREATE INDEX IF NOT EXISTS idx_songs_approved ON songs(is_approved);
 CREATE INDEX IF NOT EXISTS idx_songs_youtube_video_id ON songs(youtube_video_id);
 
 -- ============================================
--- MIGRATION: Spotify → YouTube (aplica si ya existe la tabla)
+-- MIGRATION: Spotify → YouTube (aplica si ya existe la tabla con el esquema antiguo)
 -- ============================================
--- Renombrar columnas de Spotify a YouTube
-ALTER TABLE songs RENAME COLUMN spotify_id TO youtube_video_id;
-ALTER TABLE songs RENAME COLUMN cover_url TO thumbnail_url;
--- Eliminar columnas que ya no se necesitan
+-- Renombrar columnas de Spotify a YouTube SOLO si las antiguas aún existen.
+-- En una DB fresca, el `CREATE TABLE IF NOT EXISTS songs` de arriba ya crea la
+-- tabla con `youtube_video_id`/`thumbnail_url` (nombres nuevos); en ese caso
+-- las columnas `spotify_id`/`cover_url` no existen y un RENAME directo fallaría
+-- con "column spotify_id does not exist".
+-- Sin este guard, ejecutar schema.sql sobre una DB fresca no es idempotente
+-- (COMPENDIUM §10 #1). migration_update.sql §2 usa este mismo patrón DO/IF EXISTS.
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'songs' AND column_name = 'spotify_id'
+  ) THEN
+    ALTER TABLE songs RENAME COLUMN spotify_id TO youtube_video_id;
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'songs' AND column_name = 'cover_url'
+  ) THEN
+    ALTER TABLE songs RENAME COLUMN cover_url TO thumbnail_url;
+  END IF;
+END $$;
+
+-- Eliminar columnas que ya no se necesitan (idempotente: DROP COLUMN IF EXISTS)
 ALTER TABLE songs DROP COLUMN IF EXISTS album;
 ALTER TABLE songs DROP COLUMN IF EXISTS preview_url;
 -- Actualizar indices
 DROP INDEX IF EXISTS idx_songs_spotify_id;
 CREATE INDEX IF NOT EXISTS idx_songs_youtube_video_id ON songs(youtube_video_id);
--- Ignorar errores si las columnas ya fueron renombradas
 
 -- ============================================
 -- TABLA: admin_settings (Configuración del sitio)
 -- ============================================
+-- NOTA: esta tabla NO la lee actualmente la aplicación. La fuente de verdad
+-- de TODO el contenido (fecha, couple, deadline) es `src/data/wedding.ts`.
+-- Se conserva la tabla (y estos valores reales, no ya los placeholders
+-- `2025`/`Emerson`/`Plancarte` que tenía antes) para que una funcionalidad
+-- futura lea verdad y no drift. Para limpiar una DB que ya tenga las filas
+-- drift viejas, correr `migration_clean_admin_settings.sql`
+-- (idempotente). Ver COMPENDIUM §10 #4.
 CREATE TABLE IF NOT EXISTS admin_settings (
   key VARCHAR(100) PRIMARY KEY,
   value JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Valores por defecto
+-- Valores por defecto reales (alineados a src/data/wedding.ts; on conflict no sobreescribe)
 INSERT INTO admin_settings (key, value) VALUES
-  ('wedding_date', '{"date": "2025-10-18T16:00:00", "timezone": "America/Mexico_City"}'),
-  ('couple_names', '{"name1": "Emerson", "name2": "Plancarte"}'),
-  ('rsvp_deadline', '{"date": "2025-09-01", "enabled": true}'),
-  ('max_companions', '{"limit": 5}'),
+  ('wedding_date', '{"date": "2026-09-12T18:00:00", "timezone": "America/Mexico_City"}'),
+  ('couple_names', '{"name1": "Alma", "name2": "Chava"}'),
+  ('rsvp_deadline', '{"date": "2026-08-15", "enabled": true}'),
+  ('max_companions', '{"limit": 2}'),
   ('site_status', '{"maintenance": false, "rsvp_open": true}')
 ON CONFLICT (key) DO NOTHING;
 
@@ -237,7 +265,12 @@ BEGIN
 END;
 $$;
 
--- Función para votar una canción
+-- DEPRECATED: vote_song() — NO la usan las rutas actuales (grep de `vote_song`
+-- en src/ = 0). El camino en vivo de votos es like_song()/unlike_song() (§9 de
+-- migration_update.sql), que respeta "un like por navegador" vía la tabla
+-- song_likes. vote_song suma/resta sin tracking → permite doble-conteo.
+-- Se conserva por backward-compat con cualquier caller externo, pero NO
+-- reconectarla. Ver COMPENDIUM §10 #13.
 CREATE OR REPLACE FUNCTION vote_song(p_song_id UUID, p_delta INTEGER)
 RETURNS VOID
 LANGUAGE plpgsql

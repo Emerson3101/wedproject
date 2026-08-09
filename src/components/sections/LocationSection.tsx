@@ -1,14 +1,17 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { MapPin, Navigation, ExternalLink, Church, GlassWater } from "lucide-react";
+import { Navigation, ExternalLink, Church, GlassWater } from "lucide-react";
 import { weddingDetails } from "@/data/wedding";
 import SectionTitle from "@/components/shared/SectionTitle";
+import Reveal from "@/components/shared/Reveal";
 import GlassCard from "@/components/ui/GlassCard";
 import GoogleMapEmbed from "@/components/shared/GoogleMapEmbed";
 
 /* ============================================
    UBICACIÓN / MAPA — Con Google Maps
+   Las cards de sede heredan el hover premium de
+   GlassCard; la del mapa se marca `interactive={false}`
+   para que el embed no escale al pasar el cursor.
    ============================================ */
 export default function LocationSection() {
   const googleMapsUrl = (coords: { lat: number; lng: number }) =>
@@ -26,12 +29,7 @@ export default function LocationSection() {
         {/* Cards de Ceremonia y Recepción */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
           {/* Ceremonia */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7 }}
-          >
+          <Reveal>
             <GlassCard className="text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center">
@@ -41,7 +39,7 @@ export default function LocationSection() {
               <h3 className="text-display text-2xl text-burgundy mb-2">
                 {weddingDetails.ceremony.name}
               </h3>
-              <p className="text-display text-xl text-gold mb-1">
+              <p className="text-display text-xl text-silver mb-1">
                 {weddingDetails.ceremony.location}
               </p>
               <p className="text-body text-burgundy/60 text-sm mb-2">
@@ -61,15 +59,10 @@ export default function LocationSection() {
                 <ExternalLink size={14} />
               </a>
             </GlassCard>
-          </motion.div>
+          </Reveal>
 
           {/* Recepción */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-          >
+          <Reveal delay={0.2}>
             <GlassCard className="text-center">
               <div className="flex justify-center mb-4">
                 <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center">
@@ -79,7 +72,7 @@ export default function LocationSection() {
               <h3 className="text-display text-2xl text-burgundy mb-2">
                 {weddingDetails.reception.name}
               </h3>
-              <p className="text-display text-xl text-gold mb-1">
+              <p className="text-display text-xl text-silver mb-1">
                 {weddingDetails.reception.location}
               </p>
               <p className="text-body text-burgundy/60 text-sm mb-2">
@@ -99,26 +92,33 @@ export default function LocationSection() {
                 <ExternalLink size={14} />
               </a>
             </GlassCard>
-          </motion.div>
+          </Reveal>
         </div>
 
-        {/* Mapa embebido con estilos personalizados */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="mt-12"
-        >
-          <GlassCard padding="none" className="overflow-hidden">
-            <GoogleMapEmbed
-              center={weddingDetails.ceremony.coordinates}
-              zoom={15}
-              height={400}
-              markerLabel="💕"
-            />
-          </GlassCard>
-        </motion.div>
+        {/* Mapas embebidos — uno por sede */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+          {/* Mapa Ceremonia */}
+          <Reveal y={40} duration={0.8} delay={0.2}>
+            <GlassCard padding="none" interactive={false} className="overflow-hidden">
+              <GoogleMapEmbed
+                center={weddingDetails.ceremony.coordinates}
+                height={320}
+                markerLabel="⛪"
+              />
+            </GlassCard>
+          </Reveal>
+
+          {/* Mapa Recepción */}
+          <Reveal y={40} duration={0.8} delay={0.4}>
+            <GlassCard padding="none" interactive={false} className="overflow-hidden">
+              <GoogleMapEmbed
+                center={weddingDetails.reception.coordinates}
+                height={320}
+                markerLabel="🎊"
+              />
+            </GlassCard>
+          </Reveal>
+        </div>
       </div>
     </section>
   );

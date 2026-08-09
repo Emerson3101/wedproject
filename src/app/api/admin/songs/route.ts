@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase";
-import { cookies } from "next/headers";
+import { requireAdmin } from "@/lib/auth";
 
 /* ============================================
    API: PATCH /api/admin/songs
@@ -9,30 +9,11 @@ import { cookies } from "next/headers";
    ============================================ */
 export async function PATCH(request: NextRequest) {
   try {
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminPassword) {
-      console.error("Config Error: ADMIN_PASSWORD is not set in environment.");
-      return NextResponse.json(
-        { error: "Servicio no disponible por error de configuración." },
-        { status: 503 }
-      );
-    }
-
-    // Verificar autenticación mediante cookie o Bearer token
-    const cookieStore = await cookies();
-    const adminCookie = cookieStore.get("admin_auth")?.value;
-    const authHeader = request.headers.get("authorization");
-
-    const isCookieValid = adminCookie === adminPassword;
-    const isTokenValid = authHeader === `Bearer ${adminPassword}`;
-
-    if (!isCookieValid && !isTokenValid) {
-      return NextResponse.json(
-        { error: "No autorizado." },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAdmin(
+      { configError: "Servicio no disponible por error de configuración." },
+      request
+    );
+    if (!auth.ok) return auth.response;
 
     const body = await request.json();
     const { songId, isApproved } = body as {

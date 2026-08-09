@@ -44,9 +44,9 @@ export default function BokehBackground() {
         radius: Math.random() * 80 + 30,
         dx: (Math.random() - 0.5) * 0.3,
         dy: (Math.random() - 0.5) * 0.3,
-        hue: Math.random() * 40 + 10, // warm hues
-        saturation: Math.random() * 30 + 20,
-        lightness: Math.random() * 20 + 70,
+        hue: Math.random() * 55 + 200, // frost → platinum (silver sheen)
+        saturation: Math.random() * 10 + 6, // muy baja saturación: brillo platino frío
+        lightness: Math.random() * 18 + 72,
         alpha: Math.random() * 0.15 + 0.05,
       });
     }

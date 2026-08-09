@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import html2canvas from "html2canvas";
 import { couple, weddingDate, weddingDetails } from "@/data/wedding";
+import { formatDate, formatTime } from "@/lib/utils";
 
 interface InvitationCardProps {
   guestName: string;
@@ -10,8 +11,7 @@ interface InvitationCardProps {
   guestPhone: string;
   status: "confirmed" | "declined";
   numCompanions: number;
-  companions: Array<{ name: string; dietary: string }>;
-  dietary: string;
+  companions: Array<{ name: string }>;
 }
 
 export default function InvitationCard({
@@ -21,22 +21,12 @@ export default function InvitationCard({
   status,
   numCompanions,
   companions,
-  dietary,
 }: InvitationCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const formattedDate = weddingDate.toLocaleDateString("es-MX", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-
-  const formattedTime = weddingDate.toLocaleTimeString("es-MX", {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  const formattedDate = formatDate(weddingDate);
+  const formattedTime = formatTime(weddingDate);
 
   const totalGuests = numCompanions + 1;
   const guestList = [guestName, ...companions.map((c) => c.name).filter(Boolean)];
@@ -49,7 +39,7 @@ export default function InvitationCard({
       const canvas = await html2canvas(cardRef.current, {
         scale: 2,
         useCORS: true,
-        backgroundColor: "#FFFFF0",
+        backgroundColor: "#F6F5F8",
         logging: false,
       });
 
@@ -75,16 +65,16 @@ export default function InvitationCard({
             minHeight: 820,
             fontFamily: "'Jost', sans-serif",
             background:
-              "linear-gradient(160deg, #FFFFF0 0%, #F7E7CE 40%, #F4C2C2 70%, #FFFFF0 100%)",
+              "linear-gradient(160deg, #F6F5F8 0%, #EAE8EE 46%, #E6DEE5 78%, #F6F5F8 100%)",
             borderRadius: 24,
             overflow: "hidden",
             boxSizing: "border-box",
           }}
         >
-          {/* Gold inner border */}
+          {/* Silver inner border */}
           <div
             style={{
-              border: "2px solid #C5A55A",
+              border: "2px solid #5C6168",
               borderRadius: 18,
               padding: 16,
               boxSizing: "border-box",
@@ -103,8 +93,8 @@ export default function InvitationCard({
                 position: "relative",
               }}
             >
-              {/* ====== TOP: ornament + couple + date ====== */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, width: "100%" }}>
+              {/* ====== TOP: ornament + couple + invitation paragraph ====== */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, width: "100%" }}>
                 {/* Top ornament line */}
                 <div
                   style={{
@@ -114,45 +104,68 @@ export default function InvitationCard({
                     gap: 12,
                   }}
                 >
-                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #C5A55A, transparent)" }} />
-                  <span style={{ color: "#C5A55A", fontSize: 18 }}>✦</span>
-                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #C5A55A, transparent)" }} />
+                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
+                  <span style={{ color: "#5C6168", fontSize: 18 }}>✦</span>
+                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
                 </div>
 
-                {/* Couple names */}
+                {/* Couple names — script centerpiece */}
                 <div style={{ textAlign: "center" }}>
                   <div
                     style={{
                       fontFamily: "'Great Vibes', cursive",
-                      fontSize: 52,
+                      fontSize: 56,
                       color: "#722F37",
                       lineHeight: 1.15,
-                      marginBottom: 8,
+                      marginBottom: 12,
                       padding: "0 16px",
                     }}
                   >
                     {couple.name1}
-                    <span style={{ color: "#C5A55A", fontSize: 44 }}> & </span>
+                    <span style={{ color: "#5C6168", fontSize: 46 }}> & </span>
                     {couple.name2}
                   </div>
-                  <p
-                    style={{
-                      fontFamily: "'Cormorant Garamond', serif",
-                      fontSize: 14,
-                      color: "#722F37",
-                      opacity: 0.7,
-                      letterSpacing: 0.08,
-                      textTransform: "uppercase",
-                      margin: 0,
-                    }}
-                  >
-                    {status === "confirmed"
-                      ? "te invitan a celebrar su boda"
-                      : "te agradece tu interés en su boda"}
-                  </p>
                 </div>
 
-                {/* Date + time between gold lines */}
+                {/* Invitation paragraph — client's wording */}
+                <div
+                  style={{
+                    padding: "8px 24px 0 24px",
+                    textAlign: "center",
+                  }}
+                >
+                  {status === "confirmed" ? (
+                    <p
+                      style={{
+                        fontFamily: "'Cormorant Garamond', serif",
+                        fontSize: 18,
+                        color: "#722F37",
+                        lineHeight: 1.55,
+                        fontStyle: "italic",
+                        margin: 0,
+                      }}
+                    >
+                      Te invitamos a celebrar nuestra boda de plata este {" "}
+                      {formattedDate.toLowerCase()} a partir de las 8:00 PM en el {" "}
+                      {weddingDetails.reception.location}. Esperamos contar con tu hermosa y agradable compañía para divertirnos a lo grande.
+                    </p>
+                  ) : (
+                    <p
+                      style={{
+                        fontFamily: "'Cormorant Garamond', serif",
+                        fontSize: 18,
+                        color: "#722F37",
+                        lineHeight: 1.55,
+                        fontStyle: "italic",
+                        margin: 0,
+                      }}
+                    >
+                      Te agradecemos tu interés en nuestra boda de plata y apreciamos que nos hayas acompañado con tus deseos.
+                    </p>
+                  )}
+                </div>
+
+                {/* Date + time between silver lines */}
                 <div
                   style={{
                     display: "flex",
@@ -160,10 +173,10 @@ export default function InvitationCard({
                     alignItems: "center",
                     gap: 6,
                     width: "100%",
-                    padding: "12px 0",
+                    padding: "8px 0 0 0",
                   }}
                 >
-                  <div style={{ width: 80, height: 1, background: "#C5A55A" }} />
+                  <div style={{ width: 80, height: 1, background: "#5C6168" }} />
                   <p
                     style={{
                       fontFamily: "'Cormorant Garamond', serif",
@@ -180,32 +193,32 @@ export default function InvitationCard({
                     style={{
                       fontFamily: "'Cormorant Garamond', serif",
                       fontSize: 24,
-                      color: "#C5A55A",
+                      color: "#5C6168",
                       fontWeight: 600,
                       margin: 0,
                     }}
                   >
                     {formattedTime}
                   </p>
-                  <div style={{ width: 80, height: 1, background: "#C5A55A" }} />
+                  <div style={{ width: 80, height: 1, background: "#5C6168" }} />
                 </div>
               </div>
 
-              {/* ====== MIDDLE: event details ====== */}
+              {/* ====== MIDDLE: venue cards (ceremony + reception) ====== */}
               <div style={{ display: "flex", flexDirection: "column", gap: 0, width: "100%" }}>
                 {/* Ceremony */}
                 <div
                   style={{
                     textAlign: "center",
                     padding: "14px 20px",
-                    borderBottom: "1px solid rgba(197, 165, 90, 0.3)",
+                    borderBottom: "1px solid rgba(92, 97, 104,0.35)",
                   }}
                 >
                   <p
                     style={{
                       fontFamily: "'Cormorant Garamond', serif",
                       fontSize: 12,
-                      color: "#C5A55A",
+                      color: "#5C6168",
                       textTransform: "uppercase",
                       letterSpacing: 0.2,
                       margin: "0 0 6px 0",
@@ -259,7 +272,7 @@ export default function InvitationCard({
                     style={{
                       fontFamily: "'Cormorant Garamond', serif",
                       fontSize: 12,
-                      color: "#C5A55A",
+                      color: "#5C6168",
                       textTransform: "uppercase",
                       letterSpacing: 0.2,
                       margin: "0 0 6px 0",
@@ -310,7 +323,7 @@ export default function InvitationCard({
                   <div
                     style={{
                       background: "rgba(255, 255, 255, 0.6)",
-                      border: "1px solid rgba(197, 165, 90, 0.35)",
+                      border: "1px solid rgba(92, 97, 104,0.4)",
                       borderRadius: 16,
                       padding: "18px 24px",
                       display: "flex",
@@ -353,7 +366,7 @@ export default function InvitationCard({
                       style={{
                         width: "60%",
                         height: 1,
-                        background: "linear-gradient(90deg, transparent, #C5A55A, transparent)",
+                        background: "linear-gradient(90deg, transparent, #5C6168, transparent)",
                         margin: "12px 0",
                       }}
                     />
@@ -374,24 +387,6 @@ export default function InvitationCard({
                         {name}
                       </p>
                     ))}
-
-                    {/* Dietary info */}
-                    {dietary && (
-                      <p
-                        style={{
-                          fontSize: 11,
-                          color: "#722F37",
-                          opacity: 0.5,
-                          margin: "10px 0 0 0",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        <span style={{ fontStyle: "normal", textTransform: "uppercase", letterSpacing: 0.06, fontSize: 10 }}>
-                          Restricciones:
-                        </span>{" "}
-                        {dietary}
-                      </p>
-                    )}
                   </div>
                 )}
 
@@ -404,9 +399,9 @@ export default function InvitationCard({
                     gap: 12,
                   }}
                 >
-                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #C5A55A, transparent)" }} />
-                  <span style={{ color: "#C5A55A", fontSize: 18 }}>✦</span>
-                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #C5A55A, transparent)" }} />
+                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
+                  <span style={{ color: "#5C6168", fontSize: 18 }}>✦</span>
+                  <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
                 </div>
 
                 {/* Footer */}
@@ -420,7 +415,7 @@ export default function InvitationCard({
                     }}
                   >
                     {status === "confirmed"
-                      ? "¡Te esperamos con mucho gusto!"
+                      ? "Los esperamos con mucho cariño"
                       : "Gracias por tu atención"}
                   </p>
                   <p

@@ -36,10 +36,10 @@ export default function FloatingPetals() {
     }
 
     const colors = [
-      "rgba(244, 194, 194, 0.6)",
-      "rgba(232, 160, 191, 0.5)",
-      "rgba(247, 231, 206, 0.7)",
-      "rgba(220, 174, 150, 0.5)",
+      "rgba(230, 222, 229, 0.6)",
+      "rgba(215, 203, 217, 0.5)",
+      "rgba(247, 231, 206, 0.6)",
+      "rgba(156, 175, 136, 0.4)",
     ];
 
     const petals: Petal[] = [];

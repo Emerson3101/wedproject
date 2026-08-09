@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, type Guest, type Companion } from "@/lib/supabase";
 import { isSupabaseServerConfigured } from "@/lib/config";
-import { cookies } from "next/headers";
+import { requireAdmin } from "@/lib/auth";
 
 interface GuestWithCompanions {
   guest: Guest;
@@ -10,24 +10,8 @@ interface GuestWithCompanions {
 
 /* GET — fetch all guests with their companions */
 export async function GET() {
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  if (!adminPassword) {
-    console.error("Config Error: ADMIN_PASSWORD is not set in environment.");
-    return NextResponse.json(
-      { ok: false, error: "Servicio no disponible por error de configuración del servidor." },
-      { status: 503 }
-    );
-  }
-
-  // Verificar sesión
-  const cookieStore = await cookies();
-  const adminCookie = cookieStore.get("admin_auth")?.value;
-  if (adminCookie !== adminPassword) {
-    return NextResponse.json(
-      { ok: false, error: "No autorizado." },
-      { status: 401 }
-    );
-  }
+  const auth = await requireAdmin({ wrapOk: true });
+  if (!auth.ok) return auth.response;
   if (!isSupabaseServerConfigured) {
     return NextResponse.json(
       { ok: false, error: "Supabase server not configured. Check .env.local" },

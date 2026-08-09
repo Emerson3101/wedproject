@@ -256,7 +256,10 @@ export default function PlaylistSection() {
           isLike,
         }),
       });
-      const data = (await res.json()) as { liked?: boolean };
+      // La respuesta del PATCH se ignora: refreshSongs() recarga el estado real del servidor.
+      // Se mantiene el await res.json() para preservar el comportamiento de error (lanza si el
+      // cuerpo no es JSON, lo que cae en el catch y revierte el voto).
+      await res.json();
 
       // Refrescar para sincronizar con el estado real del servidor
       await refreshSongs();
@@ -399,7 +402,7 @@ export default function PlaylistSection() {
                   onChange={handleSearchChange}
                   className="flex-1 bg-transparent focus:outline-none text-body text-burgundy placeholder:text-burgundy/40 text-base"
                 />
-                {isSearching && <Loader2 size={20} className="text-gold animate-spin" />}
+                {isSearching && <Loader2 size={20} className="text-silver animate-spin" />}
                 {searchTerm && !isSearching && (
                   <button
                     onClick={() => {
@@ -438,6 +441,7 @@ export default function PlaylistSection() {
                           type="button"
                         >
                           {video.thumbnailUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- thumbnail de YouTube (host i.ytimg.com, fuera de remotePatterns)
                             <img
                               src={video.thumbnailUrl}
                               alt={video.title}
@@ -445,7 +449,7 @@ export default function PlaylistSection() {
                             />
                           ) : (
                             <div className="w-16 h-10 rounded-lg bg-burgundy/10 flex items-center justify-center flex-shrink-0 border border-champagne/20">
-                              <Music size={16} className="text-gold" />
+                              <Music size={16} className="text-silver" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0">
@@ -456,7 +460,7 @@ export default function PlaylistSection() {
                               {video.artist}
                             </p>
                           </div>
-                          <Plus size={20} className="text-gold/80 flex-shrink-0 hover:text-gold transition-colors" />
+                          <Plus size={20} className="text-silver/80 flex-shrink-0 hover:text-silver transition-colors" />
                         </button>
                       ))}
                     </div>
@@ -495,14 +499,14 @@ export default function PlaylistSection() {
                         placeholder="Título de la canción"
                         value={manualTitle}
                         onChange={(e) => setManualTitle(e.target.value)}
-                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-gold/50 text-body text-burgundy"
+                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
                       />
                       <input
                         type="text"
                         placeholder="Artista"
                         value={manualArtist}
                         onChange={(e) => setManualArtist(e.target.value)}
-                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-gold/50 text-body text-burgundy"
+                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
                       />
                     </div>
                     <input
@@ -510,7 +514,7 @@ export default function PlaylistSection() {
                       placeholder="URL de YouTube (opcional)"
                       value={manualUrl}
                       onChange={(e) => setManualUrl(e.target.value)}
-                      className="px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-gold/50 text-body text-burgundy"
+                      className="px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
                     />
                     <button
                       type="submit"
@@ -554,10 +558,10 @@ export default function PlaylistSection() {
             {sortedSongs.map((song, index) => (
               <motion.div
                 key={song.id}
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: Math.min(index * 0.03, 0.5) }}
+                transition={{ duration: 0.5, delay: Math.min(index * 0.05, 0.45), ease: [0.16, 1, 0.3, 1] }}
               >
                 <GlassCard
                   variant="subtle"
@@ -566,6 +570,7 @@ export default function PlaylistSection() {
                 >
                   {/* Miniatura o icono */}
                   {song.thumbnail_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- thumbnail de YouTube
                     <img
                       src={song.thumbnail_url}
                       alt={song.title}
@@ -577,7 +582,7 @@ export default function PlaylistSection() {
                       className="w-16 h-10 rounded-lg bg-burgundy/5 flex items-center justify-center flex-shrink-0"
                       onClick={() => setSelectedSong(song)}
                     >
-                      <Music size={14} className="text-gold" />
+                      <Music size={14} className="text-silver" />
                     </div>
                   )}
 
@@ -597,7 +602,7 @@ export default function PlaylistSection() {
                     {song.youtube_video_id && (
                       <button
                         onClick={() => setSelectedSong(song)}
-                        className="p-2 rounded-full text-burgundy/30 hover:text-gold hover:bg-gold/10 transition-all"
+                        className="p-2 rounded-full text-burgundy/30 hover:text-silver hover:bg-silver/10 transition-all"
                         aria-label="Reproducir"
                         type="button"
                       >
@@ -711,7 +716,7 @@ export default function PlaylistSection() {
                     href={`https://www.youtube.com/watch?v=${selectedSong.youtube_video_id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-burgundy/50 hover:text-gold transition-colors"
+                    className="inline-flex items-center gap-2 text-sm text-burgundy/50 hover:text-silver transition-colors"
                   >
                     <Music size={16} />
                     Ver en YouTube

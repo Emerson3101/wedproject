@@ -59,18 +59,24 @@ END $$;
 -- ============================================
 -- 3. TABLA: admin_settings (nueva)
 -- ============================================
+-- NOTA: la app NO lee admin_settings hoy (fuente de verdad = src/data/wedding.ts).
+-- Se conservan valores REALES (2026 / Alma & Chava) para una feature futura,
+-- en lugar de los placeholders `2025`/`Emerson`/`Plancarte` que habían antes.
+-- `ON CONFLICT DO NOTHING` preserva cualquier valor que un admin haya seteado
+-- a mano; para borrar drift viejo en una DB existente, correr
+-- `migration_clean_admin_settings.sql`. Ver COMPENDIUM §10 #4.
 CREATE TABLE IF NOT EXISTS admin_settings (
   key VARCHAR(100) PRIMARY KEY,
   value JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Valores por defecto (no duplica si ya existen)
+-- Valores por defecto reales (alineados a src/data/wedding.ts; no duplica si ya existen)
 INSERT INTO admin_settings (key, value) VALUES
-  ('wedding_date', '{"date": "2025-10-18T16:00:00", "timezone": "America/Mexico_City"}'),
-  ('couple_names', '{"name1": "Emerson", "name2": "Plancarte"}'),
-  ('rsvp_deadline', '{"date": "2025-09-01", "enabled": true}'),
-  ('max_companions', '{"limit": 5}'),
+  ('wedding_date', '{"date": "2026-09-12T18:00:00", "timezone": "America/Mexico_City"}'),
+  ('couple_names', '{"name1": "Alma", "name2": "Chava"}'),
+  ('rsvp_deadline', '{"date": "2026-08-15", "enabled": true}'),
+  ('max_companions', '{"limit": 2}'),
   ('site_status', '{"maintenance": false, "rsvp_open": true}')
 ON CONFLICT (key) DO NOTHING;
 
@@ -242,7 +248,12 @@ BEGIN
 END;
 $$;
 
--- Función para votar una canción
+-- DEPRECATED: vote_song() — NO la usan las rutas actuales (grep de `vote_song`
+-- en src/ = 0). El camino en vivo de votos es like_song()/unlike_song() (§9
+-- más abajo), que respeta "un like por navegador" vía la tabla song_likes.
+-- vote_song suma/resta sin tracking → permite doble-conteo. Se conserva por
+-- backward-compat con cualquier caller externo, pero NO reconectarla.
+-- Ver COMPENDIUM §10 #13.
 CREATE OR REPLACE FUNCTION vote_song(p_song_id UUID, p_delta INTEGER)
 RETURNS VOID
 LANGUAGE plpgsql

@@ -1,13 +1,16 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { Calendar, Clock, MapPin, Music } from "lucide-react";
 import { weddingDetails } from "@/data/wedding";
 import SectionTitle from "@/components/shared/SectionTitle";
+import Reveal from "@/components/shared/Reveal";
 import GlassCard from "@/components/ui/GlassCard";
 
 /* ============================================
    DETALLES DEL EVENTO
+   El hover lo gopa GlassCard (lift + scale + sombra).
+   El `group` habilita la micro-interacción del ícono
+   (escala + tono de anillo), suave y a tono.
    ============================================ */
 const detailsIcon = {
   date: Calendar,
@@ -30,22 +33,17 @@ function DetailCard({
   const Icon = detailsIcon[iconName as keyof typeof detailsIcon] || Calendar;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay }}
-    >
-      <GlassCard className="text-center hover:shadow-lg transition-shadow duration-500">
+    <Reveal delay={delay}>
+      <GlassCard className="text-center group">
         <div className="flex justify-center mb-4">
-          <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center transition-all duration-500 group-hover:scale-110 group-hover:bg-burgundy/15">
             <Icon className="text-burgundy" size={24} />
           </div>
         </div>
         <h3 className="text-display text-xl text-burgundy mb-2">{title}</h3>
-        <p className="text-body text-burgundy/70">{value}</p>
+        <p className="text-body text-burgundy/70 whitespace-pre-line">{value}</p>
       </GlassCard>
-    </motion.div>
+    </Reveal>
   );
 }
 
@@ -89,7 +87,7 @@ export default function DetailsSection() {
               iconName={card.icon}
               title={card.title}
               value={card.value}
-              delay={i * 0.15}
+              delay={i * 0.08}
             />
           ))}
         </div>

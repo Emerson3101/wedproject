@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     template: "%s | Alma & Chava",
   },
   description:
-    "¡Estás invitado a celebrar nuestro gran día! Descubre todos los detalles de la boda de Alma y Chava el 18 de Octubre, 2026.",
+    "¡Estás invitado a celebrar nuestro gran día! Descubre todos los detalles de la boda de Alma y Chava el 12 de Septiembre, 2026.",
   keywords: [
     "boda",
     "invitación",
@@ -67,37 +67,38 @@ export const metadata: Metadata = {
     siteName: "Alma & Chava — Boda",
     title: "Alma & Chava — Nuestra Boda",
     description:
-      "Únete a nosotros para celebrar nuestro amor. 18 de Octubre, 2026.",
+      "Únete a nosotros para celebrar nuestro amor. 12 de Septiembre, 2026.",
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
     title: "Alma & Chava — Nuestra Boda",
     description:
-      "Únete a nosotros para celebrar nuestro amor. 18 de Octubre, 2026.",
+      "Únete a nosotros para celebrar nuestro amor. 12 de Septiembre, 2026.",
   },
-  icons: {
-    icon: "/favicon.ico",
-    apple: "/apple-icon.png",
-  },
+  // Note: /favicon.ico is served by the `src/app/favicon.ico` file convention,
+  // which also auto-emits the `<link rel="icon">` tag — no metadata.icons block
+  // needed here. (apple-icon.png was referenced previously but never existed in
+  // public/ or as an app/apple-icon.* file convention → 404 on iOS; removed.)
   other: {
     // Schema.org structured data
     "application/ld+json": JSON.stringify({
       "@context": "https://schema.org",
       "@type": "Event",
-      name: "Boda de Alma y Chava",
+      name: "Boda de Alma y Chava — 25° Aniversario",
       eventType: "Wedding",
-      startDate: "2026-10-18T16:00:00-06:00",
-      endDate: "2026-10-18T23:59:00-06:00",
+      startDate: "2026-09-12T18:00:00-05:00",
+      endDate: "2026-09-13T01:00:00-05:00",
       eventStatus: "https://schema.org/EventScheduled",
       eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
       location: {
         "@type": "Place",
-        name: "Iglesia Santa María & Salón Jardines del Parque",
+        name: "Parroquia San Cristóbal",
         address: {
           "@type": "PostalAddress",
-          streetAddress: "Av. Principal #123",
-          addressLocality: "Ciudad de México",
+          streetAddress: "Durango s/n, Col. Progreso",
+          addressLocality: "Acapulco de Juárez, Guerrero",
+          postalCode: "39350",
           addressCountry: "MX",
         },
       },
@@ -111,8 +112,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#FFFFF0" },
-    { media: "(prefers-color-scheme: dark)", color: "#FFFFF0" },
+    { media: "(prefers-color-scheme: light)", color: "#F6F5F8" },
+    { media: "(prefers-color-scheme: dark)", color: "#F6F5F8" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -133,7 +134,10 @@ export default function RootLayout({
       className={`${cormorantGaramond.variable} ${jost.variable} ${greatVibes.variable} antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-screen flex flex-col bg-romantic overflow-x-hidden">
+      {/* bg-ivory: fallback plano si JS no corre. El gradiente vivo lo
+          aporta la capa fija `bg-romantic` de page.tsx; login/admin y
+          el PageSkeleton tienen su propio fondo `bg-romantic`. */}
+      <body className="min-h-screen flex flex-col bg-ivory overflow-x-hidden">
         {children}
       </body>
     </html>
