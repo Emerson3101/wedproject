@@ -30,7 +30,7 @@ export default function SectionTitle({
   const prefersReduced = useReducedMotion();
 
   return (
-    <div className={cn("text-center mb-12", className)}>
+    <div className={cn("text-center mb-8", className)}>
       {ornament && (
         <motion.span
           initial={prefersReduced ? false : { scale: 0.4, opacity: 0 }}

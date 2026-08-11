@@ -13,33 +13,28 @@
       consumen este manifest y renderizan cuando
       el campo deja de ser `null`.
 
+   NOTA SOBRE EXTENSIONES
+   couple-01 a couple-09 son .jpg
+   couple-10 a couple-24 son .jpeg
+   Verifica el nombre exacto del archivo antes de
+   agregarlo al manifest para evitar 404 en runtime.
+
    RECOMENDACIONES DE IMAGEN
    - Nítidas, buena iluminación.
    - Hero: vertical o cuadrada, ~1600px min.
-   - Story: min 600px de ancho, relación libre.
    - Gallery: cualquier relación; el layout es masonry.
    ============================================ */
 
 export const couplePhotos = {
   /** Foto principal del hero. `null` = sin foto, el HeroSection
       usa su composición de texto-only (nombres, fecha, ornamento). */
-  hero: "/images/couple/couple-08.jpg" as string | null,
-
-  /** Una foto opcional por hito de la línea de tiempo.
-      Cuando un entry es `null`, la StorySection omite la imagen
-      y muestra solo el card de año/título/descripción.
-      El orden coincide con `ourStory` en `src/data/wedding.ts`. */
-  story: [
-    null, // 2020 — Nos Conocimos
-    null, // 2021 — Primera Cita
-    null, // 2022 — Nos Mudamos Juntos
-    null, // 2024 — La Propuesta
-    null, // 2026 — ¡Boda de plata!
-  ] as Array<string | null>,
+  hero: "/images/couple/couple-06.jpg" as string | null,
 
   /** Galería de fotos de la pareja — todas las fotos
-      entregadas que no son hero ni story. El componente
-      PhotoGallery las muestra en un masonry responsive. */
+      entregadas que no son hero. El componente PhotoGallery
+      las muestra en un masonry responsive. Las fotos de la
+      línea de tiempo viven directamente en `ourStory`
+      (src/data/wedding.ts) — campo `image` por entry. */
   gallery: [
     "/images/couple/couple-01.jpg",
     "/images/couple/couple-02.jpg",
@@ -50,5 +45,20 @@ export const couplePhotos = {
     "/images/couple/couple-07.jpg",
     "/images/couple/couple-08.jpg",
     "/images/couple/couple-09.jpg",
+    "/images/couple/couple-10.jpeg",
+    "/images/couple/couple-11.jpeg",
+    "/images/couple/couple-12.jpeg",
+    "/images/couple/couple-13.jpeg",
+    "/images/couple/couple-14.jpeg",
+    "/images/couple/couple-15.jpeg",
+    "/images/couple/couple-16.jpeg",
+    "/images/couple/couple-17.jpeg",
+    "/images/couple/couple-18.jpeg",
+    "/images/couple/couple-19.jpeg",
+    "/images/couple/couple-20.jpeg",
+    "/images/couple/couple-21.jpeg",
+    "/images/couple/couple-22.jpeg",
+    "/images/couple/couple-23.jpeg",
+    "/images/couple/couple-24.jpeg",
   ] as string[],
 } as const;

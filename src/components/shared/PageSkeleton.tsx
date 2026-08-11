@@ -65,7 +65,7 @@ export default function PageSkeleton() {
       <section className="py-16 md:py-32 px-4">
         <div className="max-w-2xl mx-auto space-y-6">
           <SkeletonText lines={2} />
-          <div className="space-y-4 p-6 rounded-xl bg-white/10">
+          <div className="space-y-4 p-6 rounded-xl bg-silver/10">
             {Array.from({ length: 5 }).map((_, i) => (
               <Skeleton key={i} className="h-12 w-full rounded-xl" />
             ))}

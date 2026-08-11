@@ -62,7 +62,7 @@ interface SkeletonCardProps {
 export function SkeletonCard({ variant = "default" }: SkeletonCardProps) {
   if (variant === "song") {
     return (
-      <div className="flex items-center gap-4 p-4 rounded-xl bg-white/10">
+      <div className="flex items-center gap-4 p-4 rounded-xl bg-silver/10">
         <Skeleton className="w-16 h-10 rounded-lg flex-shrink-0" />
         <div className="flex-1 space-y-2">
           <Skeleton className="h-4 w-3/4" />
@@ -78,7 +78,7 @@ export function SkeletonCard({ variant = "default" }: SkeletonCardProps) {
   }
 
   return (
-    <div className="p-6 rounded-xl bg-white/10 space-y-4">
+    <div className="p-6 rounded-xl bg-silver/10 space-y-4">
       <Skeleton className="h-6 w-2/3" />
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-4 w-5/6" />

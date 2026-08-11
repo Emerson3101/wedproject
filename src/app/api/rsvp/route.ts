@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       message,
     } = body as {
       name: string;
-      email: string;
+      email?: string;
       phone?: string;
       status: "confirmed" | "declined";
       numCompanions: number;
@@ -97,28 +97,39 @@ export async function POST(request: NextRequest) {
     // dietary_restrictions se envía siempre como null desde el frontend:
     // el campo se eliminó del formulario pero se conserva en el schema/RPC.
     const cleanName = sanitizeInput(name?.trim() || "");
-    const cleanEmail = email?.trim() || "";
     const cleanPhone = sanitizeInput(phone?.trim() || "");
     const cleanMessage = sanitizeInput(message?.trim() || "");
 
-    if (!cleanName || !cleanEmail) {
+    if (!cleanName) {
       return NextResponse.json(
-        { error: "El nombre y el email son requeridos." },
+        { error: "El nombre es requerido." },
         { status: 400 }
       );
     }
 
-    if (!isValidEmail(cleanEmail)) {
-      return NextResponse.json(
-        { error: "Por favor, ingresa un correo electrónico válido." },
-        { status: 400 }
-      );
+    // Email es OPCIONAL. Solo validamos formato si el usuario lo envió.
+    // - Si viene vacío o inválido: el campo en BD se rellena con un
+    //   sentinel único (`noemail+<slug>-<ts>-<rand>@local.invalid`),
+    //   la API SkippingFlag vuelve `emailSkipped: true` para que el
+    //   frontend muestre el aviso "descarga tu invitación solo aquí",
+    //   y se omite el envío por correo (sin latency extra).
+    // - Si viene válido:流程 normal (validación + envío por Gmail).
+    const rawEmail = (email ?? "").trim();
+    const validEmail = rawEmail && isValidEmail(rawEmail) ? rawEmail : "";
+    let emailSkipped = false;
+    let storedEmail = validEmail;
+    if (!validEmail) {
+      emailSkipped = true;
+      const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "guest";
+      const rand = Math.floor(Math.random() * 1e6).toString(36);
+      storedEmail = `noemail+${slug}-${Date.now()}-${rand}@local.invalid`;
     }
 
     if (
       cleanName.length > 100 ||
       cleanPhone.length > 20 ||
-      cleanMessage.length > 1000
+      cleanMessage.length > 1000 ||
+      storedEmail.length > 255
     ) {
       return NextResponse.json(
         { error: "Los datos ingresados exceden el límite de caracteres permitido." },
@@ -147,7 +158,7 @@ export async function POST(request: NextRequest) {
     if (supabase) {
       const { error: rsvpError } = await supabase.rpc("submit_rsvp", {
         p_name: cleanName,
-        p_email: cleanEmail,
+        p_email: storedEmail,
         p_phone: cleanPhone || null,
         p_status: status,
         p_num_companions: numCompanions || 0,
@@ -167,24 +178,25 @@ export async function POST(request: NextRequest) {
     } else {
       console.warn(
         "Supabase no configurado. RSVP guardado solo en logs:",
-        { name, email, status, numCompanions }
+        { name, email: storedEmail, status, numCompanions }
       );
     }
 
     // Enviar email de confirmación via Gmail SMTP (Nodemailer).
-    // Pasamos cleanName/cleanEmail (versiones saneadas/escapadas) para que el cuerpo
-    // HTML del email no sea vulnerable a inyección y refleje exactamente lo almacenado.
-    console.log("[RSVP] isGmailConfigured:", isGmailConfigured, "| status:", status);
-    if (isGmailConfigured && status === "confirmed") {
-      const emailKey = `rsvp:email:${cleanEmail.toLowerCase()}`;
+    // Solo si el email fue proporcionado Y es válido Y el status es confirmed.
+    // Si el usuario no proporcionó email, se omite totalmente el envío —
+    // no hay latency extra (Nodemailer/Satori nunca se importan).
+    console.log("[RSVP] isGmailConfigured:", isGmailConfigured, "| status:", status, "| emailSkipped:", emailSkipped);
+    if (!emailSkipped && isGmailConfigured && status === "confirmed") {
+      const emailKey = `rsvp:email:${storedEmail.toLowerCase()}`;
       const emailLimit = rateLimit(emailKey, EMAIL_COOLDOWN_RSVPS, EMAIL_COOLDOWN_WINDOW);
       if (!emailLimit.ok) {
-        console.log("[RSVP] Email cooldown active, skipping send to:", cleanEmail);
+        console.log("[RSVP] Email cooldown active, skipping send to:", storedEmail);
       } else {
-        console.log("[RSVP] Sending confirmation email to:", cleanEmail);
+        console.log("[RSVP] Sending confirmation email to:", storedEmail);
         await sendConfirmationEmail(
           cleanName,
-          cleanEmail,
+          storedEmail,
           cleanPhone || undefined,
           status,
           numCompanions || 0,
@@ -197,6 +209,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      emailSkipped,
       message: `¡Gracias ${name}! Tu confirmación ha sido recibida.`,
     });
   } catch (error) {
@@ -308,8 +321,8 @@ async function sendConfirmationEmail(
         <div style="width: 60px; height: 1px; background: #8A8F98; margin: 0 auto 32px;"></div>
         <p style="font-size: 16px; color: #722F37; line-height: 1.8;">
           <strong>Fecha:</strong> ${weddingDetails.ceremony.date}<br/>
-          <strong>Ceremonia:</strong> ${weddingDetails.ceremony.time} — ${weddingDetails.ceremony.location}<br/>
-          <strong>Recepción:</strong> ${weddingDetails.reception.time} — ${weddingDetails.reception.location}
+          <strong>Ceremonia:</strong> ${weddingDetails.ceremony.time}, ${weddingDetails.ceremony.location}<br/>
+          <strong>Recepción:</strong> ${weddingDetails.reception.time}, ${weddingDetails.reception.location}
         </p>
         <p style="font-size: 14px; color: #722F37; opacity: 0.6; margin: 32px 0;">
           Adjuntamos tu invitación digital personalizada a este correo.

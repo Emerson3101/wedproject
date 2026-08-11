@@ -74,13 +74,15 @@ wedproject/
     │   ├── sections/               # Full-page sections + post-RSVP card
     │   │   ├── HeroSection.tsx           # Full-screen hero, animated names + date
     │   │   ├── CountdownSection.tsx      # Flip-card countdown (days/hours/min/sec)
-    │   │   ├── DetailsSection.tsx       # Ceremony & reception info cards
+    │   │   ├── DetailsSection.tsx       # Ceremony & reception info cards + Padrinos de Velación card (5th card)
     │   │   ├── StorySection.tsx         # Couple timeline (GSAP ScrollTrigger) — line grows to last node + glowing tip
-    │   │   ├── DressCodeSection.tsx     # Dress code + color palette
+    │   │   ├── PhotoGallerySection.tsx  # Masonry gallery + lightbox (couplePhotos.gallery)
+    │   │   ├── DressCodeSection.tsx     # Dress code + color palette + 8-photo masonry of reference examples (dressCodePhotos)
     │   │   ├── LocationSection.tsx     # Venue cards + Google Maps embed
     │   │   ├── PhotoUploadSection.tsx   # Cloudinary upload + album <QRCodeSVG/>
     │   │   ├── RSVPSection.tsx          # RSVP form → renders InvitationCard on success
-    │   │   ├── PlaylistSection.tsx      # YouTube search + embed + one-vote-per-browser likes
+    │   │   ├── GiftSection.tsx          # Sobre-regalo message (between RSVP and Playlist, no nav link)
+    │   │   ├── PlaylistSection.tsx      # YouTube search + embed + one-vote-per-browser likes; song list capped max-h-[32rem]
     │   │   └── InvitationCard.tsx       # Post-RSVP 600×820 card → html2canvas PNG download
     │   │
     │   ├── shared/                 # Reusable layout/shell components
@@ -122,7 +124,7 @@ wedproject/
         │
         └── api/                    # Route handlers (serverless)
             ├── rsvp/
-            │   └── route.ts            # POST submit RSVP → submit_rsvp RPC (+ Resend email); GET status
+            │   └── route.ts            # POST submit RSVP → submit_rsvp RPC (+ optional Gmail SMTP email w/ Satori invitation PNG); GET status
             ├── songs/
             │   └── route.ts            # GET(?voterId) + POST + PATCH(like/unlike) + DELETE(admin)
             ├── youtube/search/
@@ -178,10 +180,12 @@ Not the database. Exported constants used across the UI:
 - `couple` — names (`Alma`, `Chava`, display `A & C`)
 - `weddingDate` — `new Date("2026-09-12T18:00:00")` (countdown, hero, metadata, InvitationCard)
 - `weddingDetails` — ceremony (Parroquia San Cristóbal, Acapulco) + reception (Jardín de Fiestas El Patio II, La Bocana), coords
-- `ourStory` (with optional `image?` per milestone, rendered via `next/image` when set), `dressCode` (Cocktail Elegante silver/white/black), `hashtag` (`"25AnivAlmaYChava"`), `navigation` (8 links, no Countdown)
+- `ourStory` — 6 milestone entries with index labels `01`–`06` (no calendar dates, per client), `title`, verbatim client description, `icon` (heart/ring/church/home/sparkles), and `image` pointing directly at the photo for that milestone (couple-03/04/05/02/01/08). StorySection renders the photo via `next/image` when `image` is set.
+- `padrinos` — 4 sponsor entries (Velación, Lazo, Anillos, Arras) with honor title and `person1`/`person2` names (Lazo's `person2` is `null` until confirmed). The Velación entry is rendered by DetailsSection as its 5th card; Lazo/Anillos/Arras stay as dormant data for archival, no dedicated section.
+- `dressCode` (Formal Elegante, gentle guide; palette includes pure `#0E0E0F` off-black, lifted from `#000000` so swatch stays visible on dark wine bg), `hashtag` (`"25AnivAlmaYChava"`), `navigation` (9 links: Inicio/Detalalles/Historia/Galería/Vestimenta/Ubicación/Fotos/RSVP/Playlist — "Padrinos" link removed since section retired).
 
 ### Photo manifest (`src/data/couplePhotos.ts`)
-Typed skeleton with `null` defaults for the hero photo + 5 `ourStory` milestone photos. `HeroSection` and `StorySection` render these gracefully (dormant when `null`, active when the client delivers the photos — just update the manifest).
+Two fields: `hero` (currently `couple-08.jpg`) and `gallery` (24 photos — couple-01 through couple-09 as `.jpg`, couple-10 through couple-24 as `.jpeg`). Story-timeline photos live directly on `ourStory` entries in `wedding.ts` (not here), so this manifest only controls the hero and the masonry `PhotoGallerySection`.
 
 ### Configuration (`src/lib/config.ts`)
 Env-driven wrappers + boolean feature flags: `isSupabaseConfigured`, `isSupabaseServerConfigured`, `isResendConfigured`, `isGoogleMapsConfigured`, `isYouTubeConfigured`. `resendConfig.fromEmail` defaults to `SEND_FROM_EMAIL`.
@@ -195,17 +199,19 @@ Env-driven wrappers + boolean feature flags: `isSupabaseConfigured`, `isSupabase
 
 | #  | Section            | ID            | Key Features                                            |
 | -- | ------------------ | ------------- | ------------------------------------------------------- |
-| 1  | HeroSection        | `#hero`       | Full-screen, animated names, date, scroll hint           |
+| 1  | HeroSection        | `#hero`       | Full-screen, animated names, date, scroll hint (desktop bottom-center / mobile in-flow) |
 | 2  | CountdownSection   | `#countdown`  | Live countdown (days/hours/min/sec)                      |
-| 3  | DetailsSection     | `#details`    | Ceremony & reception info cards                          |
+| 3  | DetailsSection     | `#details`    | Ceremony/reception info cards + Padrinos de Velación (5th card, 3+2 layout on desktop) |
 | 4  | StorySection       | `#story`      | Timeline with GSAP ScrollTrigger                         |
-| 5  | DressCodeSection   | `#dresscode`  | Color palette, attire suggestions                        |
-| 6  | LocationSection    | `#location`   | Venue cards, Google Maps links, embedded map             |
-| 7  | PhotoUploadSection | `#photos`     | Cloudinary upload widget + album `<QRCodeSVG/>`           |
-| 8  | RSVPSection        | `#rsvp`       | RSVP form + companion mgmt → **InvitationCard** on success |
-| 9  | PlaylistSection    | `#playlist`   | YouTube search, embed, one-vote-per-browser likes        |
+| 5  | PhotoGallerySection| `#gallery`    | Masonry grid + lightbox of couple photos                 |
+| 6  | DressCodeSection   | `#dresscode`  | Color palette + 8-photo masonry of reference examples (dressCodePhotos) + attire suggestions |
+| 7  | LocationSection    | `#location`   | Venue cards, Google Maps links, embedded map             |
+| 8  | PhotoUploadSection | `#photos`     | Cloudinary upload widget + album `<QRCodeSVG/>`           |
+| 9  | RSVPSection        | `#rsvp`       | RSVP form + companion mgmt → **InvitationCard** on success |
+| 10 | GiftSection        | `#gift`       | Sobre-regalo message; no nav link (subtle, between RSVP & Playlist) |
+| 11 | PlaylistSection    | `#playlist`   | YouTube search, embed, one-vote-per-browser likes; song list capped at `max-h-[32rem]` |
 
-**InvitationCard** is not a section in `page.tsx` — it renders inside RSVPSection's success screen (html2canvas PNG download).
+**InvitationCard** is not a section in `page.tsx` — it renders inside RSVPSection's success screen (html2canvas PNG download). Rendered with dark wine gradient + champagne-light text to match the inverted site theme; both the html2canvas client capture and the **generateInvitationImage** server-side PNG (Satori + Sharp, for email attachment) share that visual spec.
 
 > The entire site is gated: an unauthenticated visitor is redirected to `/login` before reaching any section.
 
@@ -214,7 +220,7 @@ Env-driven wrappers + boolean feature flags: `isSupabaseConfigured`, `isSupabase
 | Method | Route                        | Access       | Description                                       |
 | ------ | ---------------------------- | ------------ | ------------------------------------------------- |
 | POST   | `/api/auth/login`            | Public       | `{password}` → sets `site_auth` cookie            |
-| POST   | `/api/rsvp`                  | Guest/Admin  | Submit RSVP → `submit_rsvp` RPC (+ Resend email)  |
+| POST   | `/api/rsvp`                  | Guest/Admin  | Submit RSVP → `submit_rsvp` RPC. Email optional: if provided + valid, sends Gmail SMTP confirmation w/ Satori-generated invitation PNG. If empty/invalid, stores sentinel `noemail+…@local.invalid` and returns `emailSkipped: true` so the frontend warns the guest that the invitation can only be downloaded once from the page (no email latency penalty). |
 | GET    | `/api/rsvp?email=`           | Guest/Admin  | Check RSVP status by email                         |
 | GET    | `/api/songs?voterId=`        | Guest/Admin  | List songs, enriched with `isLikedByVoter`         |
 | POST   | `/api/songs`                 | Guest/Admin  | Add a song (defaults to `is_approved=false`)       |
@@ -289,8 +295,9 @@ See `.env.example`. Key variables (✱ = required for the proxy to boot):
 | `SUPABASE_SERVICE_ROLE_KEY`                | Yes      | Server routes (bypasses RLS)      |
 | `INVITATION_CODE`                          | Yes ✱    | Guest login / proxy               |
 | `ADMIN_PASSWORD`                           | Yes ✱    | Admin login / proxy               |
-| `RESEND_API_KEY`                           | No       | Confirmation emails               |
-| `SEND_FROM_EMAIL`                          | No       | Resend "from" address             |
+| `GMAIL_USER`                               | No       | Gmail SMTP sender (confirmation emails) |
+| `GMAIL_APP_PASSWORD`                       | No       | Gmail App Password (sender auth)       |
+| `NEXT_PUBLIC_SITE_URL`                     | No       | Site URL for absolute links in emails  |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`          | No       | Maps embed                         |
 | `YOUTUBE_API_KEY`                          | No       | Playlist search (server route)     |
 | `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`        | No       | Photo upload                       |

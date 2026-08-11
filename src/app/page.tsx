@@ -17,6 +17,7 @@ import PhotoGallerySection from "@/components/sections/PhotoGallerySection";
 import DressCodeSection from "@/components/sections/DressCodeSection";
 import LocationSection from "@/components/sections/LocationSection";
 import RSVPSection from "@/components/sections/RSVPSection";
+import GiftSection from "@/components/sections/GiftSection";
 import PlaylistSection from "@/components/sections/PlaylistSection";
 import PhotoUploadSection from "@/components/sections/PhotoUploadSection";
 
@@ -86,6 +87,7 @@ export default function Home() {
       <LocationSection />
       <PhotoUploadSection />
       <RSVPSection />
+      <GiftSection />
       <PlaylistSection />
 
       {/* Footer */}

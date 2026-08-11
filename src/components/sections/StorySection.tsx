@@ -44,16 +44,25 @@ export default function StorySection() {
     let cancelled = false;
     let resizeTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Estado mutable del efecto; GSAP se importa de forma dinámica
+    // Estado mutable del efecto. GSAP se importa de forma dinámica
     // (SSR-safe) y se tipa por inferencia dentro del .then().
-    let tl: { kill: () => void } | null = null;
+    //
+    // Un ÚNICO master timeline scrubbed sobre toda la pista es la
+    // pieza central de este diseño: con un solo ScrollTrigger no hay
+    // ventanas independientes que se des sincronicen — la línea, los
+    // puntos y las tarjetas viven todos dentro del mismo progreso de
+    // scroll, así que el ritmo es siempre coherente.
+    //
+    // `masterTl` guarda ese timeline para cleanup; `localTriggers`
+    // guarda cualquier ScrollTrigger auxiliar (reduced-motion).
+    let masterTl: { kill: () => void } | null = null;
     let localTriggers: Array<{ kill: () => void }> = [];
     let rebuild: (() => void) | null = null;
     let refresh: (() => void) | null = null;
 
     const killAll = () => {
-      tl?.kill();
-      tl = null;
+      masterTl?.kill();
+      masterTl = null;
       localTriggers.forEach((t) => t.kill());
       localTriggers = [];
     };
@@ -69,8 +78,9 @@ export default function StorySection() {
 
           // Cast estructural (sin any): gsap cuelga el ScrollTrigger
           // asociado en `.scrollTrigger` del tween/timeline; así lo
-          // capturamos para cleanup sin depender de la augmentación de tipos
-          // del plugin (que vía import() dinámico puede no resolverse).
+          // capturamos para cleanup sin depender de la augmentación
+          // de tipos del plugin (que vía import() dinámico puede no
+          // resolverse).
           const triggerOf = (t: object) =>
             (t as { scrollTrigger?: { kill: () => void } }).scrollTrigger;
 
@@ -79,102 +89,183 @@ export default function StorySection() {
           const tip = tipRef.current;
           if (!track || !line || !tip) return;
 
+          const items = track.querySelectorAll<HTMLElement>(".story-item");
           const dots = track.querySelectorAll<HTMLElement>(".timeline-dot");
-          if (dots.length === 0) return;
+          if (items.length === 0 || dots.length === 0) return;
+          if (items.length !== dots.length) return;
 
-          // La línea termina en el CENTRO del último nodo.
+          const dotsArr = Array.from(dots);
+          const itemsArr = Array.from(items);
+
+          // Medición: el centro de cada nodo relativo al top de la
+          // pista.  La línea siempre se dimensiona a `lastDotCenterY`
+          // y crece por `scaleY`; el cometa viaja por `y`.
           const trackRect = track.getBoundingClientRect();
-          const lastDotRect = dots[dots.length - 1].getBoundingClientRect();
-          const lastDotCenterY =
-            lastDotRect.top - trackRect.top + lastDotRect.height / 2;
+          const dotYs = dotsArr.map((d) => {
+            const r = d.getBoundingClientRect();
+            return r.top - trackRect.top + r.height / 2;
+          });
+          const lastDotCenterY = dotYs[dotYs.length - 1];
           const tipHalf = tip.offsetHeight / 2 || 6;
+          const maxTravel = Math.max(lastDotCenterY, 1);
+
+          // Línea: altura fija = último nodo, transformOrigin top, y
+          // estado inicial según reduced-motion.
+          gsap.set(line, {
+            height: lastDotCenterY,
+            transformOrigin: "top center",
+            scaleY: reduced ? 1 : 0,
+          });
+          gsap.set(tip, { y: reduced ? lastDotCenterY - tipHalf : 0 });
 
           if (reduced) {
-            // Estático: línea completa + cometa parqueado en el último nodo.
-            gsap.set(line, {
-              height: lastDotCenterY,
-              scaleY: 1,
-              transformOrigin: "top center",
-            });
-            gsap.set(tip, { y: lastDotCenterY - tipHalf });
-          } else {
-            gsap.set(line, {
-              height: lastDotCenterY,
-              scaleY: 0,
-              transformOrigin: "top center",
-            });
-            gsap.set(tip, { y: 0 });
-
-            // Una sola.timeline scrubbed sobre TODA la pista: la línea
-            // escala de 0→1 mientras el cometa baja de 0→al último nodo.
-            const timeline = gsap.timeline({
-              scrollTrigger: {
-                trigger: track,
-                start: "top 80%",
-                end: "bottom 75%",
-                scrub: 1,
-              },
-            });
-            timeline
-              .fromTo(line, { scaleY: 0 }, { scaleY: 1, ease: "none" }, 0)
-              .fromTo(
-                tip,
-                { y: 0 },
-                { y: lastDotCenterY - tipHalf, ease: "none" },
-                0
+            // ─────────────────────────────────────────────────────
+            // Modo reduced-motion: la línea estática ya toca el
+            // último nodo.  Puntos y tarjetas aparecen por scroll
+            // con un fade suave (sin traslación/escala).
+            // ─────────────────────────────────────────────────────
+            dots.forEach((dot) => {
+              const tween = gsap.fromTo(
+                dot,
+                { autoAlpha: 0 },
+                {
+                  autoAlpha: 1,
+                  duration: 0.5,
+                  ease: "none",
+                  scrollTrigger: {
+                    trigger: dot,
+                    start: "top 85%",
+                    toggleActions: "play none none none",
+                  },
+                }
               );
-            tl = timeline;
-            const tlSt = triggerOf(timeline);
-            if (tlSt) localTriggers.push(tlSt);
+              const st = triggerOf(tween);
+              if (st) localTriggers.push(st);
+            });
+            items.forEach((item) => {
+              const tween = gsap.fromTo(
+                item,
+                { autoAlpha: 0 },
+                {
+                  autoAlpha: 1,
+                  duration: 0.6,
+                  ease: "none",
+                  scrollTrigger: {
+                    trigger: item,
+                    start: "top 85%",
+                    toggleActions: "play none none none",
+                  },
+                }
+              );
+              const st = triggerOf(tween);
+              if (st) localTriggers.push(st);
+            });
+            return;
           }
 
-          // Entrada de cada item: fade + (opcional) traslación y escala.
-          const items = track.querySelectorAll<HTMLElement>(".story-item");
-          items.forEach((item, index) => {
-            const isLeft = index % 2 === 0;
-            const tween = gsap.fromTo(
-              item,
-              reduced
-                ? { opacity: 0 }
-                : { opacity: 0, x: isLeft ? -60 : 60, scale: 0.96 },
-              {
-                opacity: 1,
-                x: 0,
-                scale: 1,
-                duration: 0.9,
-                ease: "expo.out",
-                scrollTrigger: {
-                  trigger: item,
-                  start: "top 85%",
-                  end: "top 60%",
-                  toggleActions: "play none none none",
-                },
-              }
-            );
-            const twSt = triggerOf(tween);
-            if (twSt) localTriggers.push(twSt);
+          // ─────────────────────────────────────────────────────────
+          // MODO NORMAL — un master timeline scrubbed sobre toda la
+          // pista.  El progreso 0 → 1 del timeline se mapea al scroll
+          // desde "top 80%" hasta "bottom 70%" de la pista entera.
+          //
+          // Dentro del master, por cada item añadimos una mini-
+          // timeline en la posición absoluta `index` (con
+          // `duration: 1`), de modo que los items ocupan ranuras
+          // uniformes.  Cada mini-timeline contiene, en orden:
+          //
+          //   FASE A (0 → 0.65):  línea + cometa viajan del centro
+          //                        del nodo anterior a éste.  La
+          //                        tarjeta y el punto permanecen
+          //                        invisibles.
+          //
+          //   FASE B (0.65 → 1.0): el cometa está en el nodo.  El
+          //                        punto "pop"ea (back.out) y la
+          //                        tarjeta se revela simultáneamente.
+          //
+          // Como todo vive dentro de un solo timeline scrubbed, el
+          // rendimiento visual es siempre: línea → punto → tarjeta,
+          // y al usuario le parece que la línea "toca" cada nodo
+          // antes de que aparezca la tarjeta.  No hay ventanas
+          // independientes que se des sincronicen; el avance es
+          // proporcional al scroll (1:1), ni "breakneck" ni lento.
+          // ─────────────────────────────────────────────────────────
+
+          // Inicializa puntos invisibles (los "pop"eará la timeline).
+          gsap.set(dots, { scale: 0, autoAlpha: 0 });
+          gsap.set(items, { autoAlpha: 0 });
+
+          const master = gsap.timeline({
+            scrollTrigger: {
+              trigger: track,
+              start: "top 85%",
+              end: "bottom 95%",
+              scrub: 1,
+            },
           });
 
-          // Pop-in de los puntos (back.out); bajo reduced-motion, sólo fade.
-          dots.forEach((dot) => {
-            const tween = gsap.fromTo(
+          itemsArr.forEach((item, index) => {
+            const isLeft = index % 2 === 0;
+            const prevFrac = (dotYs[index - 1] ?? 0) / maxTravel;
+            const curFrac = dotYs[index] / maxTravel;
+            const prevTipY =
+              index === 0 ? 0 : dotYs[index - 1] - tipHalf;
+            const curTipY = dotYs[index] - tipHalf;
+            const dot = dotsArr[index];
+
+            // Mini-timeline por item: 1 unidad de tiempo del master.
+            // FASE A 0 → 0.65, FASE B 0.65 → 1.0.
+            const phaseASplit = 0.65;
+            const phaseADur = phaseASplit; // 0 → 0.65
+            const phaseBDur = 1 - phaseASplit; // 0.65 → 1.0
+
+            // ① LÍNEA + COMETA viajan al nodo.  Usamos `set` para
+            // fijar el estado inicial sin animar (immediateRender
+            // por defecto en `set`), y luego `to` para animar.  Esto
+            // evita el problema de `fromTo` con `immediateRender`
+            // sobreescribiendo el estado previo cuando varios items
+            // comparten el mismo objetivo (la línea).
+            master.set(line, { scaleY: prevFrac }, index);
+            master.to(
+              line,
+              { scaleY: curFrac, ease: "none", duration: phaseADur },
+              index
+            );
+            master.set(tip, { y: prevTipY }, index);
+            master.to(
+              tip,
+              { y: curTipY, ease: "none", duration: phaseADur },
+              index
+            );
+
+            // ② PUNTO "pop"ea (back.out) en la FASE B.
+            master.fromTo(
               dot,
-              reduced ? { opacity: 0 } : { scale: 0, opacity: 0 },
+              { scale: 0, autoAlpha: 0 },
               {
                 scale: 1,
-                opacity: 1,
-                duration: 0.5,
+                autoAlpha: 1,
                 ease: "back.out(2)",
-                scrollTrigger: {
-                  trigger: dot,
-                  start: "top 80%",
-                  toggleActions: "play none none none",
-                },
-              }
+                duration: phaseBDur,
+              },
+              index + phaseASplit
             );
-            const twSt = triggerOf(tween);
-            if (twSt) localTriggers.push(twSt);
+
+            // ③ TARJETA aparece en la FASE B (simultánea al punto).
+            master.fromTo(
+              item,
+              { autoAlpha: 0, x: isLeft ? -60 : 60, scale: 0.96 },
+              {
+                autoAlpha: 1,
+                x: 0,
+                scale: 1,
+                ease: "none",
+                duration: phaseBDur,
+              },
+              index + phaseASplit
+            );
           });
+
+          masterTl = master;
         };
 
         rebuild = build;
@@ -218,7 +309,7 @@ export default function StorySection() {
         />
 
         {/* Timeline */}
-        <div ref={trackRef} className="relative mt-16">
+        <div ref={trackRef} className="relative mt-8">
           {/* Línea central plateada — altura medida por JS para terminar en
               el último nodo; GSAP posee el `transform` (scaleY), por eso el
               centrado se hace con margen (-ml-px) y no con translate. */}
@@ -234,9 +325,9 @@ export default function StorySection() {
             return (
               <div
                 key={item.year}
-                className={`story-item relative flex items-start mb-12 md:mb-16 ${
+                className={`story-item relative flex flex-col items-stretch mb-8 md:flex-row md:items-start md:mb-10 ${
                   isLeft ? "md:flex-row" : "md:flex-row-reverse"
-                }`}
+                } ${index === ourStory.length - 1 ? "mb-0 md:mb-0" : ""}`}
               >
                 {/* Punto en la línea */}
                 <div className="timeline-dot absolute left-4 md:left-1/2 w-4 h-4 rounded-full bg-silver border-4 border-ivory shadow-md transform -translate-x-1/2 z-10 mt-1" />
@@ -248,24 +339,23 @@ export default function StorySection() {
                   }`}
                 >
                   <GlassCard>
-                    {/* Foto opcional del milestone — se renderiza solo si
-                        el entry tiene `image` definido (graceful absence).
-                        Cuando la pareja entregue las fotos, basta con
-                        setear el campo en src/data/wedding.ts; el resto
-                        del layout se ajusta automáticamente. */}
+                    {/* Foto del milestone — se renderiza solo si el entry
+                        tiene `image` definido. Frame-in-frame: contenedor
+                        cuadrado consistente con margen (matting) de color
+                        marfil/champaña, y la foto adentro con `object-contain`
+                        — sin recorte. Funciona para retratos y paisajes
+                        por igual, manteniendo el ritmo de la línea de tiempo. */}
                     {item.image && (
-                      <div
-                        className={`relative w-full aspect-video rounded-xl overflow-hidden mb-4 ${
-                          isLeft ? "md:flex md:justify-end" : ""
-                        }`}
-                      >
-                        <Image
-                          src={item.image}
-                          alt={`${item.title} — ${item.year}`}
-                          fill
-                          sizes="(max-width: 768px) 100vw, 50vw"
-                          className="object-cover"
-                        />
+                      <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-5 bg-gradient-to-br from-ivory/90 via-champagne/25 to-ivory/90 p-3 shadow-inner">
+                        <div className="relative h-full w-full rounded-lg overflow-hidden bg-ivory ring-1 ring-silver/40 shadow-sm">
+                          <Image
+                            src={item.image}
+                            alt={`${item.title}, ${item.year}`}
+                            fill
+                            sizes="(max-width: 768px) 100vw, 50vw"
+                            className="object-contain object-center"
+                          />
+                        </div>
                       </div>
                     )}
                     <div
@@ -283,7 +373,7 @@ export default function StorySection() {
                     <h3 className="text-display text-xl text-burgundy mb-2">
                       {item.title}
                     </h3>
-                    <p className="text-body text-burgundy/60 text-sm leading-relaxed">
+                    <p className="text-body text-burgundy/60 text-lg leading-relaxed">
                       {item.description}
                     </p>
                   </GlassCard>

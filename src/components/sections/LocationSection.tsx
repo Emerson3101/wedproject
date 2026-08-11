@@ -27,12 +27,12 @@ export default function LocationSection() {
         />
 
         {/* Cards de Ceremonia y Recepción */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
           {/* Ceremonia */}
           <Reveal>
             <GlassCard className="text-center">
               <div className="flex justify-center mb-4">
-                <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-silver/10 flex items-center justify-center">
                   <Church className="text-burgundy" size={24} />
                 </div>
               </div>
@@ -65,7 +65,7 @@ export default function LocationSection() {
           <Reveal delay={0.2}>
             <GlassCard className="text-center">
               <div className="flex justify-center mb-4">
-                <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center">
+                <div className="w-14 h-14 rounded-full bg-silver/10 flex items-center justify-center">
                   <GlassWater className="text-burgundy" size={24} />
                 </div>
               </div>

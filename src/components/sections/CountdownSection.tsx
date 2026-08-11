@@ -37,7 +37,7 @@ export default function CountdownSection() {
   const { days, hours, minutes, seconds } = useCountdown(weddingDate);
 
   return (
-    <section id="countdown" className="section-padding relative z-20 pt-28 md:pt-32">
+    <section id="countdown" className="section-padding relative z-20 pt-12 md:pt-16">
       <div className="max-w-4xl mx-auto">
         <SectionTitle
           ornament="❦"
@@ -64,7 +64,7 @@ export default function CountdownSection() {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ delay: 0.5, duration: 1 }}
-          className="text-center mt-16"
+          className="text-center mt-10"
         >
           <p className="text-script text-silver text-3xl md:text-4xl">
             {couple.name1} & {couple.name2}

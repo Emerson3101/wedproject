@@ -177,7 +177,7 @@ export default function AdminPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Contraseña"
-              className="w-full px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
+              className="w-full px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
             />
             {loginError && (
               <p className="text-rose text-sm">{loginError}</p>

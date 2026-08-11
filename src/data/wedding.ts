@@ -36,44 +36,46 @@ export const weddingDetails = {
 
 export const ourStory = [
   {
-    year: "2020",
-    title: "Nos Conocimos",
-    description:
-      "Todo comenzó con una conversación casual que cambió nuestras vidas para siempre.",
+    year: "01",
+    title: "Nuestra Historia",
+    description: "Aquí inicia nuestra historia de lindos novios.",
     icon: "heart",
-    image: undefined as string | undefined,
+    image: "/images/couple/couple-03.jpg" as string | undefined,
   },
   {
-    year: "2021",
-    title: "Primera Cita",
-    description:
-      "Una cena bajo las estrellas que nos confirmó que algo especial estaba naciendo.",
-    icon: "sparkles",
-    image: undefined as string | undefined,
-  },
-  {
-    year: "2022",
-    title: "Nos Mudamos Juntos",
-    description:
-      "Decidimos dar el siguiente paso y construir un hogar lleno de amor y risas.",
-    icon: "home",
-    image: undefined as string | undefined,
-  },
-  {
-    year: "2024",
-    title: "La Propuesta",
-    description:
-      "Con los nervios y el corazón lleno, la pregunta más importante fue hecha.",
+    year: "02",
+    title: "La Decisión",
+    description: "Tomamos la decisión más importante de nuestras vidas hace 25 años.",
     icon: "ring",
-    image: undefined as string | undefined,
+    image: "/images/couple/couple-04.jpg" as string | undefined,
   },
   {
-    year: "2026",
-    title: "¡Boda de plata!",
-    description:
-      "El día más esperado llega. ¡Únete a nosotros para celebrar este gran momento!",
+    year: "03",
+    title: "La Bendición",
+    description: "Con la bendición de Dios.",
     icon: "church",
-    image: undefined as string | undefined,
+    image: "/images/couple/couple-05.jpg" as string | undefined,
+  },
+  {
+    year: "04",
+    title: "Nuestra Familia",
+    description: "Construimos una hermosa familia.",
+    icon: "home",
+    image: "/images/couple/couple-02.jpg" as string | undefined,
+  },
+  {
+    year: "05",
+    title: "Nuestra Vida",
+    description: "Una hermosa vida.",
+    icon: "heart",
+    image: "/images/couple/couple-01.jpg" as string | undefined,
+  },
+  {
+    year: "06",
+    title: "Nuestro Futuro",
+    description: "Y seguimos construyendo un futuro con amor y dedicación.",
+    icon: "sparkles",
+    image: "/images/couple/couple-08.jpg" as string | undefined,
   },
 ] as const;
 
@@ -81,20 +83,18 @@ export const dressCode = {
   title: "Código de Vestimenta",
   subtitle: "Formal Elegante",
   description:
-    "Queremos verte bien y que te sientas cómodo/a. Lo de abajo es una guía, no una regla — lo que más nos importa es que vengas a celebrar con nosotros.",
+    "Queremos verte bien y que te sientas cómodo/a. Lo de abajo es una guía, no una regla; lo que más nos importa es que vengas a celebrar con nosotros.",
   palette: [
     { name: "Plata", color: "#8A8F98" },
-    { name: "Platino", color: "#EAE8EE" },
     { name: "Blanco", color: "#FFFFFF" },
-    { name: "Negro", color: "#000000" },
-    { name: "Gris", color: "#5C6168" },
+    { name: "Negro", color: "#0E0E0F" },
   ],
   women: {
     title: "Para las Damas",
     suggestions: [
-      "Vestido o conjunto elegante — la opción que te haga sentir bonita",
-      "Si quieres, un toque de brillo o plata para acompañar la ocasión",
-      "Zapatos cómo te sientas mejor (sandalias, tacones o flats, todo vale)",
+      "Vestido o conjunto elegante.",
+      "De ser posible, alguna prenda con acentos o colores metálicos o plateados.",
+      "Calzado formal de preferencia.",
     ],
     notSuggested: [
       "Ropa deportiva o playeras",
@@ -104,14 +104,41 @@ export const dressCode = {
     title: "Para los Caballeros",
     suggestions: [
       "Camisa de vestir con pantalón formal (saco y corbata opcionales)",
-      "Si te animas, un acento plateado sutil: corbata, pañuelo o gemelos",
-      "Zapatos de piel, loafers o — si es casual — unos buenos tenis blancos",
+      "De ser posible, alguna prenda con acentos o colores metálicos o plateados.",
+      "Calzado formal de preferencia.",
     ],
     notSuggested: [
       "Ropa deportiva, playeras estampadas o shorts",
     ],
   },
 } as const;
+
+export const padrinos = [
+  {
+    role: "Velación",
+    honor: "Padrinos de Velación",
+    person1: "Paty Plancarte",
+    person2: "Jorge Garabito",
+  },
+  {
+    role: "Lazo",
+    honor: "Padrinos de Lazo",
+    person1: "Orlando Juarez",
+    person2: "Martha Elena Navarrete",
+  },
+  {
+    role: "Anillos",
+    honor: "Padrinos de Anillos",
+    person1: "Bety Plancarte",
+    person2: "Cecy Pérez",
+  },
+  {
+    role: "Arras",
+    honor: "Padrinos de Arras",
+    person1: "Juan Carlos Cerón",
+    person2: "Zenny Jaimes",
+  },
+] as const;
 
 export const navigation = [
   { label: "Inicio", href: "#hero" },

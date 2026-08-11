@@ -499,14 +499,14 @@ export default function PlaylistSection() {
                         placeholder="Título de la canción"
                         value={manualTitle}
                         onChange={(e) => setManualTitle(e.target.value)}
-                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
+                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
                       />
                       <input
                         type="text"
                         placeholder="Artista"
                         value={manualArtist}
                         onChange={(e) => setManualArtist(e.target.value)}
-                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
+                        className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
                       />
                     </div>
                     <input
@@ -514,7 +514,7 @@ export default function PlaylistSection() {
                       placeholder="URL de YouTube (opcional)"
                       value={manualUrl}
                       onChange={(e) => setManualUrl(e.target.value)}
-                      className="px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
+                      className="px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
                     />
                     <button
                       type="submit"
@@ -546,15 +546,16 @@ export default function PlaylistSection() {
           )}
         </AnimatePresence>
 
-        {/* Lista de Canciones */}
+        {/* Lista de Canciones — capped at max-h-[32rem] with internal
+            scroll so a flood of submissions doesn't bloat the page. */}
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-2">
             {Array.from({ length: 5 }).map((_, i) => (
               <SkeletonCard key={i} variant="song" />
             ))}
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[32rem] overflow-y-auto pr-2">
             {sortedSongs.map((song, index) => (
               <motion.div
                 key={song.id}
@@ -668,22 +669,26 @@ export default function PlaylistSection() {
               className="relative w-full max-w-2xl bg-white/95 rounded-2xl overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header del modal */}
+              {/* Header del modal.
+                  El modal es bg-white/95 (superficie clara por el embed de
+                  YouTube); tras la inversión oscura, las clases text-burgundy
+                  se vuelven champagne claro y se pierden sobre el blanco.
+                  Hardcodeamos el vino profundo aquí para garantizar contraste. */}
               <div className="flex items-center justify-between p-4 border-b border-champagne/50">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-display text-lg text-burgundy font-medium truncate">
+                  <h3 className="text-display text-lg text-[#2A1518] font-medium truncate">
                     {selectedSong.title}
                   </h3>
-                  <p className="text-body text-sm text-burgundy/50">
+                  <p className="text-body text-sm text-[#2A1518]/60">
                     {selectedSong.artist}
                   </p>
                 </div>
                 <button
                   onClick={() => setSelectedSong(null)}
-                  className="p-2 rounded-full hover:bg-burgundy/5 transition-colors ml-3"
+                  className="p-2 rounded-full hover:bg-[#2A1518]/5 transition-colors ml-3"
                   type="button"
                 >
-                  <X size={20} className="text-burgundy/60" />
+                  <X size={20} className="text-[#2A1518]/60" />
                 </button>
               </div>
 

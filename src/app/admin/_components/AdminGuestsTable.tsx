@@ -206,7 +206,7 @@ export function AdminGuestsTable({
                             {companions.map((companion) => (
                               <div
                                 key={companion.id}
-                                className="flex items-center gap-3 bg-white/40 rounded-lg px-3 py-2"
+                                className="flex items-center gap-3 bg-wine-deep/40 rounded-lg px-3 py-2"
                               >
                                 <div className="w-8 h-8 rounded-full bg-sage/20 flex items-center justify-center text-sage text-xs font-medium flex-shrink-0">
                                   {companion.name.charAt(0).toUpperCase()}
@@ -256,7 +256,7 @@ export function AdminGuestsTable({
                             onKeyDown={(e) => handleKeyDown(e, guest.id)}
                             onClick={(e) => e.stopPropagation()}
                             placeholder="Nombre del acompañante"
-                            className="flex-1 px-4 py-2 rounded-lg border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy text-sm"
+                            className="flex-1 px-4 py-2 rounded-lg border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy text-sm"
                           />
                           <button
                             type="button"

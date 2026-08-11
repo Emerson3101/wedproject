@@ -59,7 +59,7 @@ export default function PhotoGallerySection() {
           subtitle={`Un vistazo a nuestra historia juntos`}
         />
 
-        <div className="columns-2 md:columns-3 gap-4 mt-12 [&>*]:mb-4 [&>*]:break-inside-avoid">
+        <div className="columns-2 md:columns-3 gap-4 mt-8 [&>*]:mb-4 [&>*]:break-inside-avoid">
           {couplePhotos.gallery.map((src, i) => (
             <Reveal
               key={src}
@@ -73,7 +73,7 @@ export default function PhotoGallerySection() {
               >
                 <Image
                   src={src}
-                  alt={`${couple.name1} y ${couple.name2} — foto ${i + 1}`}
+                  alt={`${couple.name1} y ${couple.name2}, foto ${i + 1}`}
                   width={600}
                   height={800}
                   sizes="(max-width: 768px) 50vw, 33vw"
@@ -131,7 +131,7 @@ export default function PhotoGallerySection() {
             >
               <Image
                 src={couplePhotos.gallery[activeIndex]}
-                alt={`${couple.name1} y ${couple.name2} — foto ${activeIndex + 1}`}
+                alt={`${couple.name1} y ${couple.name2}, foto ${activeIndex + 1}`}
                 width={1200}
                 height={1600}
                 sizes="100vw"
@@ -139,7 +139,7 @@ export default function PhotoGallerySection() {
               />
             </motion.div>
 
-            <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-body text-xs text-burgundy/50 uppercase tracking-widest">
+            <p className="absolute bottom-6 left-1/2 -translate-x-1/2 text-body text-sm text-burgundy/50 uppercase tracking-widest">
               {activeIndex + 1} / {couplePhotos.gallery.length}
             </p>
           </motion.div>

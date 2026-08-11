@@ -56,9 +56,12 @@ export default function LoginPage() {
       {/* Pétalos cayendo en el fondo */}
       <FloatingPetals />
 
-      {/* Círculos decorativos en el fondo para efecto de vidrio */}
-      <div className="absolute top-1/4 left-1/4 w-72 h-72 rounded-full bg-blush/25 filter blur-3xl -z-10 animate-float" />
-      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-champagne/20 filter blur-3xl -z-10 animate-float" style={{ animationDelay: "2s" }} />
+      {/* Círculos decorativos en el fondo para efecto de vidrio.
+          Tras la inversión oscura, blush/champagne son vino oscuro;
+          usamos rose (pastel claro) y sage (verde medio) — los acentos
+          cálidos que el usuario pidió conservar y que brillan contra el vino. */}
+      <div className="absolute top-1/4 left-1/4 w-72 h-72 rounded-full bg-rose/15 filter blur-3xl -z-10 animate-float" />
+      <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-sage/10 filter blur-3xl -z-10 animate-float" style={{ animationDelay: "2s" }} />
 
       <GlassCard
         variant="strong"
@@ -68,7 +71,7 @@ export default function LoginPage() {
         {/* Adorno superior */}
         <div className="flex justify-center mb-6">
           <div className="relative">
-            <div className="w-14 h-14 rounded-full bg-burgundy/10 flex items-center justify-center text-burgundy animate-pulse">
+            <div className="w-14 h-14 rounded-full bg-silver/10 flex items-center justify-center text-burgundy animate-pulse">
               <Lock className="w-6 h-6" />
             </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-silver flex items-center justify-center text-white text-[10px]">
@@ -103,7 +106,7 @@ export default function LoginPage() {
                 if (error) setError(null);
               }}
               placeholder="Ingresa el código aquí"
-              className="w-full px-5 py-4 rounded-full border border-champagne bg-white/40 focus:outline-none focus:ring-2 focus:ring-silver focus:border-transparent text-body text-burgundy text-center placeholder-burgundy/40 text-lg transition-all tracking-widest"
+              className="w-full px-5 py-4 rounded-full border border-champagne bg-wine-deep/30 focus:outline-none focus:ring-2 focus:ring-silver focus:border-transparent text-body text-burgundy text-center placeholder-burgundy/40 text-lg transition-all tracking-widest"
               disabled={loading}
               autoFocus
             />

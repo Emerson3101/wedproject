@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://wedding.example.com"
   ),
   title: {
-    default: "Alma & Chava — Nuestra Boda",
+    default: "Alma & Chava, Nuestra Boda",
     template: "%s | Alma & Chava",
   },
   description:
@@ -64,15 +64,15 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "es_MX",
-    siteName: "Alma & Chava — Boda",
-    title: "Alma & Chava — Nuestra Boda",
+    siteName: "Alma & Chava, Boda",
+    title: "Alma & Chava, Nuestra Boda",
     description:
       "Únete a nosotros para celebrar nuestro amor. 12 de Septiembre, 2026.",
     url: "/",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Alma & Chava — Nuestra Boda",
+    title: "Alma & Chava, Nuestra Boda",
     description:
       "Únete a nosotros para celebrar nuestro amor. 12 de Septiembre, 2026.",
   },
@@ -85,7 +85,7 @@ export const metadata: Metadata = {
     "application/ld+json": JSON.stringify({
       "@context": "https://schema.org",
       "@type": "Event",
-      name: "Boda de Alma y Chava — 25° Aniversario",
+      name: "Boda de Alma y Chava, 25° Aniversario",
       eventType: "Wedding",
       startDate: "2026-09-12T18:00:00-05:00",
       endDate: "2026-09-13T01:00:00-05:00",

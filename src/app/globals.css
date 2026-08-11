@@ -4,24 +4,34 @@
    PALETA ROMÁNTICA — BODA
    ============================================ */
 :root {
-  /* Colores principales — paleta PLATINO FROST (boda de plata) */
-  --ivory: #F6F5F8;
-  --champagne: #EAE8EE;
-  --blush: #E6DEE5;
+  /* Colores principales — paleta PLATINO FROST (boda de plata)
+     ESQUEMA OSCURO/VINO: los tokens semánticos están invertidos.
+     --ivory/--champagne/--blush ahora describen tonos de VINO OSCURO
+     (fondos) y --burgundy/--burgundy-light describen tonos de
+     CHAMPAGNE claro (texto / acentos claros). Los acentos metálicos
+     (silver/silver-light/silver-dark) y los pasteles cálidos (rose/sage)
+     se conservan sin cambios para que destellen contra el vino. */
+  --ivory: #1F1518;
+  --champagne: #2A1F23;
+  --blush: #3A2530;
   --rose: #D7CBD9;
-  --burgundy: #722F37;
+  --burgundy: #EAE8EE;
   --silver: #8A8F98;
   --sage: #9CAF88;
 
   /* Derivados */
-  --burgundy-light: #8C3A42;
+  --burgundy-light: #C5CBD3;
   --silver-light: #C5CBD3;
   --silver-dark: #5C6168;
   --sage-light: #B5C9A3;
 
+  /* Vino profundo para gradientes y superficies elevadas */
+  --wine-deep: #2A1518;
+  --wine-mid: #4A2F38;
+
   /* Fondo y texto */
   --background: var(--ivory);
-  --foreground: #3D3B40;
+  --foreground: #EAE8EE;
 
   /* Tipografía */
   --font-display: "Cormorant Garamond", serif;
@@ -46,6 +56,8 @@
   --color-silver-light: var(--silver-light);
   --color-silver-dark: var(--silver-dark);
   --color-sage: var(--sage);
+  --color-wine-deep: var(--wine-deep);
+  --color-wine-mid: var(--wine-mid);
 
   /* Fuentes */
   --font-display: var(--font-display);
@@ -78,28 +90,28 @@ body {
 .glass {
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(255, 255, 255, 0.22);
-  border: 1px solid rgba(205, 212, 222, 0.45);
+  background: rgba(42, 31, 35, 0.55);
+  border: 1px solid rgba(138, 143, 152, 0.30);
   border-radius: 24px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 0 rgba(197, 203, 211, 0.10);
 }
 
 .glass-strong {
   backdrop-filter: blur(30px) saturate(200%);
   -webkit-backdrop-filter: blur(30px) saturate(200%);
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(205, 212, 222, 0.6);
+  background: rgba(58, 37, 48, 0.70);
+  border: 1px solid rgba(138, 143, 152, 0.40);
   border-radius: 24px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  box-shadow: inset 0 1px 0 rgba(197, 203, 211, 0.15);
 }
 
 .glass-subtle {
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(205, 212, 222, 0.28);
+  background: rgba(31, 21, 24, 0.45);
+  border: 1px solid rgba(138, 143, 152, 0.22);
   border-radius: 20px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 1px 0 rgba(197, 203, 211, 0.08);
 }
 
 /* ============================================
@@ -143,18 +155,18 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--champagne);
+  background: var(--silver);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--silver);
+  background: var(--silver-light);
 }
 
 /* Selección de texto */
 ::selection {
-  background: var(--blush);
-  color: var(--burgundy);
+  background: var(--silver-dark);
+  color: var(--ivory);
 }
 
 /* Foco accesible — aro en plata (sólo navegación por teclado) */
@@ -235,7 +247,7 @@ body {
    SECCIONES
    ============================================ */
 .section-padding {
-  padding: 5rem 1rem;
+  padding: 2rem 1rem;
   scroll-margin-top: 5.5rem;
 }
 
@@ -247,7 +259,7 @@ section {
 
 @media (min-width: 768px) {
   .section-padding {
-    padding: 8rem 2rem;
+    padding: 3rem 2rem;
   }
 }
 
@@ -264,18 +276,18 @@ section {
   font-size: 0.95rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: var(--ivory);
-  background: linear-gradient(135deg, var(--burgundy), var(--burgundy-light));
+  color: var(--burgundy);
+  background: linear-gradient(135deg, var(--silver-dark), var(--wine-deep));
   border: none;
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(114, 47, 55, 0.25);
+  box-shadow: 0 4px 20px rgba(92, 97, 104, 0.35), inset 0 1px 0 rgba(197, 203, 211, 0.15);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(114, 47, 55, 0.35);
+  box-shadow: 0 8px 30px rgba(138, 143, 152, 0.4), inset 0 1px 0 rgba(197, 203, 211, 0.25);
 }
 
 .btn-primary:active {
@@ -294,16 +306,17 @@ section {
   text-transform: uppercase;
   color: var(--burgundy);
   background: transparent;
-  border: 2px solid var(--burgundy);
+  border: 2px solid var(--silver);
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .btn-outline:hover {
-  color: var(--ivory);
-  background: var(--burgundy);
+  background: rgba(197, 203, 211, 0.12);
+  border-color: var(--silver-light);
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(138, 143, 152, 0.25);
 }
 
 .btn-outline:active {

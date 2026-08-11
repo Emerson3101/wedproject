@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Users, MessageSquare, Send, CheckCircle } from "lucide-react";
+import { Users, MessageSquare, Send, CheckCircle, AlertTriangle } from "lucide-react";
 import SectionTitle from "@/components/shared/SectionTitle";
 import GlassCard from "@/components/ui/GlassCard";
 import InvitationCard from "@/components/sections/InvitationCard";
@@ -30,6 +30,7 @@ export default function RSVPSection() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [emailSkipped, setEmailSkipped] = useState(false);
   const [error, setError] = useState("");
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -72,8 +73,10 @@ export default function RSVPSection() {
       setError("Por favor ingresa tu nombre.");
       return;
     }
-    if (!formData.email.trim()) {
-      setError("Por favor ingresa tu email.");
+    // Email es opcional. Solo validamos formato si el usuario lo envió.
+    const trimmedEmail = formData.email.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError("El correo electrónico no tiene un formato válido. Déjalo en blanco si no quieres recibir la invitación por email.");
       return;
     }
 
@@ -94,7 +97,11 @@ export default function RSVPSection() {
         }),
       });
 
-      const data = (await res.json()) as { success?: boolean; error?: string };
+      const data = (await res.json()) as {
+        success?: boolean;
+        emailSkipped?: boolean;
+        error?: string;
+      };
 
       if (!res.ok || !data.success) {
         setError(data.error || "Hubo un error al enviar. Intenta de nuevo.");
@@ -102,6 +109,7 @@ export default function RSVPSection() {
         return;
       }
 
+      setEmailSkipped(!!data.emailSkipped);
       setIsSubmitted(true);
     } catch (err) {
       console.error("RSVP submit error:", err);
@@ -132,6 +140,18 @@ export default function RSVPSection() {
                   <br />
                   ¡Estamos ansiosos por celebrar contigo!
                 </p>
+
+                {emailSkipped && (
+                  <div className="mt-2 flex items-start gap-3 text-left bg-champagne/60 border border-silver/30 rounded-xl p-4">
+                    <AlertTriangle className="text-burgundy/70 flex-shrink-0 mt-0.5" size={20} />
+                    <p className="text-body text-sm text-burgundy/80 leading-relaxed">
+                      No proporcionaste un correo electrónico, así que no podemos
+                      enviarte la invitación por email. <strong>Descárgala ahora
+                      desde el botón de abajo</strong>: una vez que salgas de esta
+                      página, no podrás recuperarla.
+                    </p>
+                  </div>
+                )}
 
                 <div className="pt-4">
                   <InvitationCard
@@ -164,7 +184,7 @@ export default function RSVPSection() {
               <GlassCard className="space-y-6" interactive={false}>
                 {/* Nombre */}
                 <div>
-                  <label className="text-body text-sm text-burgundy/70 uppercase tracking-wider block mb-2">
+                  <label className="text-body text-lg text-burgundy/70 uppercase tracking-wider block mb-2">
                     Nombre Completo *
                   </label>
                   <input
@@ -172,43 +192,45 @@ export default function RSVPSection() {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-burgundy"
+                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-lg text-burgundy"
                     placeholder="Tu nombre"
                   />
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="text-body text-sm text-burgundy/70 uppercase tracking-wider block mb-2">
-                    Correo Electrónico *
+                  <label className="text-body text-lg text-burgundy/70 uppercase tracking-wider block mb-2">
+                    Correo Electrónico <span className="text-burgundy/40 normal-case tracking-normal">(opcional)</span>
                   </label>
                   <input
                     type="email"
-                    required
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-burgundy"
-                    placeholder="tu@email.com"
+                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-lg text-burgundy"
+                    placeholder="tu@email.com, para recibir tu invitación por correo"
                   />
+                  <p className="text-body text-sm text-burgundy/50 mt-1.5 leading-relaxed">
+                    Si lo dejas en blanco, solo podrás descargar tu invitación desde esta página.
+                  </p>
                 </div>
 
                 {/* Teléfono */}
                 <div>
-                  <label className="text-body text-sm text-burgundy/70 uppercase tracking-wider block mb-2">
+                  <label className="text-body text-lg text-burgundy/70 uppercase tracking-wider block mb-2">
                     Teléfono
                   </label>
                   <input
                     type="tel"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-burgundy"
+                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-lg text-burgundy"
                     placeholder="+52 55 1234 5678"
                   />
                 </div>
 
                 {/* Asistencia */}
                 <div>
-                  <label className="text-body text-sm text-burgundy/70 uppercase tracking-wider block mb-3">
+                  <label className="text-body text-lg text-burgundy/70 uppercase tracking-wider block mb-3">
                     ¿Asistirás?
                   </label>
                   <div className="flex gap-4">
@@ -217,7 +239,7 @@ export default function RSVPSection() {
                         key={option}
                         type="button"
                         onClick={() => setFormData({ ...formData, status: option })}
-                        className={`flex-1 py-3 rounded-xl border-2 transition-all text-body font-medium ${
+                        className={`flex-1 py-3 rounded-xl border-2 transition-all text-body text-lg font-medium ${
                           formData.status === option
                             ? option === "confirmed"
                               ? "border-sage bg-sage/10 text-sage"
@@ -235,7 +257,7 @@ export default function RSVPSection() {
                 {formData.status === "confirmed" && (
                   <>
                     <div>
-                      <label className="text-body text-sm text-burgundy/70 uppercase tracking-wider flex items-center gap-2 block mb-3">
+                      <label className="text-body text-lg text-burgundy/70 uppercase tracking-wider flex items-center gap-2 block mb-3">
                         <Users size={16} />
                         Número de Acompañantes
                       </label>
@@ -278,7 +300,7 @@ export default function RSVPSection() {
                           onChange={(e) =>
                             updateCompanion(index, "name", e.target.value)
                           }
-                          className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-burgundy"
+                          className="flex-1 px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 text-body text-lg text-burgundy"
                         />
                         <button
                           type="button"
@@ -294,7 +316,7 @@ export default function RSVPSection() {
 
                 {/* Mensaje */}
                 <div>
-                  <label className="text-body text-sm text-burgundy/70 uppercase tracking-wider flex items-center gap-2 block mb-2">
+                  <label className="text-body text-lg text-burgundy/70 uppercase tracking-wider flex items-center gap-2 block mb-2">
                     <MessageSquare size={16} />
                     Mensaje para los Novios
                   </label>
@@ -304,7 +326,7 @@ export default function RSVPSection() {
                     onChange={(e) =>
                       setFormData({ ...formData, message: e.target.value })
                     }
-                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-white/50 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-burgundy resize-none"
+                    className="w-full px-4 py-3 rounded-xl border border-champagne bg-wine-deep/40 focus:outline-none focus:ring-2 focus:ring-silver/50 focus:border-silver transition-all text-body text-lg text-burgundy resize-none"
                     placeholder="¡Un deseo o mensaje especial!"
                   />
                 </div>

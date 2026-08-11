@@ -59,26 +59,26 @@ export async function generateInvitationImage(opts: {
   const fontEntries = Object.entries(fonts).map(([name, data]) => ({ name, data, weight: Number(name.match(/-(\d+)$/)?.[1] || "400") as 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900, style: "normal" as const }));
 
   const svg = await satori(
-    <div style={{ width: 600, display: "flex", flexDirection: "column", fontFamily: "Jost", background: "linear-gradient(160deg, #F6F5F8 0%, #EAE8EE 46%, #E6DEE5 78%, #F6F5F8 100%)", borderRadius: 24, padding: 16, boxSizing: "border-box" }}>
-      <div style={{ display: "flex", flexDirection: "column", borderRadius: 18, border: "2px solid #5C6168", padding: 16, boxSizing: "border-box" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 24px", width: "100%" }}>
+    <div style={{ width: 600, display: "flex", flexDirection: "column", fontFamily: "Jost", background: "linear-gradient(160deg, #1F1518 0%, #2A1F23 46%, #3A2530 78%, #1F1518 100%)", borderRadius: 24, padding: 16, boxSizing: "border-box" }}>
+      <div style={{ display: "flex", flexDirection: "column", borderRadius: 18, border: "2px solid #8A8F98", padding: 16, boxSizing: "border-box" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 28px", width: "100%" }}>
           {/* Top ornament */}
           <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
-            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
-            <span style={{ color: "#5C6168", fontSize: 18 }}>✦</span>
-            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
+            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #8A8F98, transparent)" }} />
+            <span style={{ color: "#8A8F98", fontSize: 24 }}>✦</span>
+            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #8A8F98, transparent)" }} />
           </div>
 
           {/* Couple names */}
-          <div style={{ fontFamily: "Great Vibes", fontSize: 56, color: "#722F37", lineHeight: 1.15, marginTop: 20, marginBottom: 12, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          <div style={{ fontFamily: "Great Vibes", fontSize: 72, color: "#EAE8EE", lineHeight: 1.15, marginTop: 20, marginBottom: 14, display: "flex", flexDirection: "column", alignItems: "center" }}>
             <div>{couple.name1}</div>
-            <span style={{ color: "#5C6168", fontSize: 34 }}>{` & `}</span>
+            <span style={{ color: "#8A8F98", fontSize: 60 }}>{` & `}</span>
             <div>{couple.name2}</div>
           </div>
 
           {/* Invitation paragraph */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 8, padding: "0 24px" }}>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 18, color: "#722F37", lineHeight: 1.55, fontStyle: "italic", textAlign: "center", margin: 0 }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 24, color: "#EAE8EE", lineHeight: 1.55, fontStyle: "italic", textAlign: "center", margin: 0 }}>
               {status === "confirmed"
                 ? `Te invitamos a celebrar nuestra boda de plata este ${formattedDate.toLowerCase()} a partir de las 8:00 PM en el ${weddingDetails.reception.location}. Esperamos contar con tu hermosa y agradable compañía para divertirnos a lo grande.`
                 : `Te agradecemos tu interés en nuestra boda de plata y apreciamos que nos hayas acompañado con tus deseos.`}
@@ -87,60 +87,60 @@ export async function generateInvitationImage(opts: {
 
           {/* Date + time */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 16 }}>
-            <div style={{ width: 80, height: 1, background: "#5C6168" }} />
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 17, color: "#722F37", letterSpacing: 0.12, textTransform: "uppercase", margin: "6px 0" }}>
+            <div style={{ width: 80, height: 1, background: "#8A8F98" }} />
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 22, color: "#EAE8EE", letterSpacing: 0.12, textTransform: "uppercase", margin: "6px 0" }}>
               {formattedDate}
             </p>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 24, color: "#5C6168", fontWeight: 600, margin: 0 }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 32, color: "#8A8F98", fontWeight: 600, margin: 0 }}>
               {formattedTime}
             </p>
-            <div style={{ width: 80, height: 1, background: "#5C6168" }} />
+            <div style={{ width: 80, height: 1, background: "#8A8F98" }} />
           </div>
 
           {/* Ceremony */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "14px 20px", borderBottom: "1px solid rgba(92,97,104,0.35)", width: "100%", marginTop: 16, boxSizing: "border-box" }}>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 12, color: "#5C6168", textTransform: "uppercase", letterSpacing: 0.2, margin: "0 0 6px 0" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "16px 20px", borderBottom: "1px solid rgba(138,143,152,0.4)", width: "100%", marginTop: 16, boxSizing: "border-box" }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 16, color: "#8A8F98", textTransform: "uppercase", letterSpacing: 0.2, margin: "0 0 8px 0" }}>
               {weddingDetails.ceremony.name}
             </p>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 22, color: "#722F37", fontWeight: 600, margin: "0 0 4px 0" }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 28, color: "#EAE8EE", fontWeight: 600, margin: "0 0 6px 0" }}>
               {weddingDetails.ceremony.location}
             </p>
-            <p style={{ fontFamily: "Jost", fontSize: 11, color: "#722F37", opacity: 0.6, margin: "0 0 4px 0" }}>
+            <p style={{ fontFamily: "Jost", fontSize: 16, color: "#EAE8EE", opacity: 0.6, margin: "0 0 6px 0" }}>
               {weddingDetails.ceremony.address}
             </p>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 15, color: "#722F37", fontStyle: "italic", margin: 0, opacity: 0.7 }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 19, color: "#EAE8EE", fontStyle: "italic", margin: 0, opacity: 0.7 }}>
               {weddingDetails.ceremony.time}
             </p>
           </div>
 
           {/* Reception */}
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "14px 20px", width: "100%", boxSizing: "border-box" }}>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 12, color: "#5C6168", textTransform: "uppercase", letterSpacing: 0.2, margin: "0 0 6px 0" }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "16px 20px", width: "100%", boxSizing: "border-box" }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 16, color: "#8A8F98", textTransform: "uppercase", letterSpacing: 0.2, margin: "0 0 8px 0" }}>
               {weddingDetails.reception.name}
             </p>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 22, color: "#722F37", fontWeight: 600, margin: "0 0 4px 0" }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 28, color: "#EAE8EE", fontWeight: 600, margin: "0 0 6px 0" }}>
               {weddingDetails.reception.location}
             </p>
-            <p style={{ fontFamily: "Jost", fontSize: 11, color: "#722F37", opacity: 0.6, margin: "0 0 4px 0" }}>
+            <p style={{ fontFamily: "Jost", fontSize: 16, color: "#EAE8EE", opacity: 0.6, margin: "0 0 6px 0" }}>
               {weddingDetails.reception.address}
             </p>
-            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 15, color: "#722F37", fontStyle: "italic", margin: 0, opacity: 0.7 }}>
+            <p style={{ fontFamily: "Cormorant Garamond", fontSize: 19, color: "#EAE8EE", fontStyle: "italic", margin: 0, opacity: 0.7 }}>
               {weddingDetails.reception.time}
             </p>
           </div>
 
           {/* Guest badge (only if confirmed) */}
           {status === "confirmed" && (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", background: "rgba(255,255,255,0.6)", border: "1px solid rgba(92,97,104,0.4)", borderRadius: 16, padding: "18px 24px", width: "100%", marginTop: 16, boxSizing: "border-box" }}>
-              <p style={{ fontFamily: "Cormorant Garamond", fontSize: 11, textTransform: "uppercase", letterSpacing: 0.2, color: "#9CAF88", fontWeight: 600, margin: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", background: "rgba(138,143,152,0.12)", border: "1px solid rgba(197,203,211,0.25)", borderRadius: 16, padding: "20px 26px", width: "100%", marginTop: 16, boxSizing: "border-box" }}>
+              <p style={{ fontFamily: "Cormorant Garamond", fontSize: 15, textTransform: "uppercase", letterSpacing: 0.2, color: "#9CAF88", fontWeight: 600, margin: 0 }}>
                 Confirmado
               </p>
-              <p style={{ fontFamily: "Cormorant Garamond", fontSize: 14, color: "#722F37", opacity: 0.6, margin: "6px 0 0 0" }}>
+              <p style={{ fontFamily: "Cormorant Garamond", fontSize: 18, color: "#EAE8EE", opacity: 0.6, margin: "8px 0 0 0" }}>
                 {totalGuests} {totalGuests === 1 ? "persona" : "personas"}
               </p>
-              <div style={{ width: "60%", height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)", margin: "12px 0" }} />
+              <div style={{ width: "60%", height: 1, background: "linear-gradient(90deg, transparent, #8A8F98, transparent)", margin: "12px 0" }} />
               {guestList.map((name, i) => (
-                <p key={i} style={{ fontFamily: "Cormorant Garamond", fontSize: 18, color: "#722F37", margin: "4px 0", fontWeight: i === 0 ? 600 : 400, opacity: i === 0 ? 1 : 0.75 }}>
+                <p key={i} style={{ fontFamily: "Cormorant Garamond", fontSize: 22, color: "#EAE8EE", margin: "5px 0", fontWeight: i === 0 ? 600 : 400, opacity: i === 0 ? 1 : 0.75 }}>
                   {name}
                 </p>
               ))}
@@ -149,21 +149,21 @@ export async function generateInvitationImage(opts: {
 
           {/* Bottom ornament */}
           <div style={{ display: "flex", alignItems: "center", width: "100%", marginTop: 14 }}>
-            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
-            <span style={{ color: "#5C6168", fontSize: 18 }}>✦</span>
-            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #5C6168, transparent)" }} />
+            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #8A8F98, transparent)" }} />
+            <span style={{ color: "#8A8F98", fontSize: 24 }}>✦</span>
+            <div style={{ flex: 1, height: 1, background: "linear-gradient(90deg, transparent, #8A8F98, transparent)" }} />
           </div>
 
           {/* Footer */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", marginTop: 8 }}>
-            <p style={{ fontFamily: "Great Vibes", fontSize: 26, color: "#722F37", margin: "0 0 4px 0" }}>
+            <p style={{ fontFamily: "Great Vibes", fontSize: 32, color: "#EAE8EE", margin: "0 0 4px 0" }}>
               {status === "confirmed" ? "Los esperamos con mucho cariño" : "Gracias por tu atención"}
             </p>
-            <p style={{ fontFamily: "Jost", fontSize: 10, color: "#722F37", opacity: 0.35, margin: 0 }}>
+            <p style={{ fontFamily: "Jost", fontSize: 13, color: "#C5CBD3", opacity: 0.65, margin: 0 }}>
               {guestEmail}
             </p>
             {guestPhone ? (
-              <p style={{ fontFamily: "Jost", fontSize: 10, color: "#722F37", opacity: 0.35, margin: 0 }}>
+              <p style={{ fontFamily: "Jost", fontSize: 13, color: "#C5CBD3", opacity: 0.65, margin: 0 }}>
                 {guestPhone}
               </p>
             ) : null}
