@@ -209,12 +209,12 @@ export default function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 mb-8">
+        <div className="flex flex-wrap gap-2 mb-8 sm:flex-nowrap sm:overflow-x-auto sm:pb-2">
           {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-6 py-3 rounded-xl text-body uppercase tracking-wider text-sm transition-all ${
+              className={`px-4 py-3 sm:px-6 rounded-xl text-body uppercase tracking-wider text-sm transition-all whitespace-nowrap ${
                 activeTab === tab
                   ? "bg-burgundy text-ivory"
                   : "glass-subtle text-burgundy/60 hover:text-burgundy"
