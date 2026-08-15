@@ -366,14 +366,14 @@ export default function AdminPage() {
                     className={cn(
                       "relative flex-1 inline-flex items-center justify-center gap-2 px-3 sm:px-5 py-2.5 rounded-xl text-body uppercase tracking-wider text-sm whitespace-nowrap transition-colors",
                       isActive
-                        ? "text-ivory"
+                        ? "text-burgundy font-medium"
                         : "text-burgundy/60 hover:text-burgundy"
                     )}
                   >
                     {isActive && (
                       <motion.span
                         layoutId="admin-tab-pill"
-                        className="absolute inset-0 rounded-xl bg-gradient-to-br from-wine-mid to-wine-deep border border-silver/30 shadow-[0_4px_16px_rgba(138,143,152,0.25)]"
+                        className="absolute inset-0 rounded-xl bg-gradient-to-br from-wine-mid to-wine-deep border border-silver/50 shadow-[0_4px_16px_rgba(138,143,152,0.25),inset_0_1px_0_rgba(197,203,211,0.18)]"
                         transition={
                           prefersReduced
                             ? { duration: 0 }
