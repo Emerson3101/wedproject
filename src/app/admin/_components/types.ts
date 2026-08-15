@@ -21,6 +21,10 @@ export interface Stats {
   declined: number;
   pending: number;
   totalCompanions: number;
+  /** Acompañantes que pertenecen a invitados confirmados (desglose). */
+  confirmedCompanions: number;
+  /** Headcount real que asistirá: confirmados + sus acompañantes. Métrica hero (WS12). */
+  totalConfirmed: number;
 }
 
 export const DEFAULT_STATS: Stats = {
@@ -29,6 +33,8 @@ export const DEFAULT_STATS: Stats = {
   declined: 0,
   pending: 0,
   totalCompanions: 0,
+  confirmedCompanions: 0,
+  totalConfirmed: 0,
 };
 
 /** Mensaje proyectado — shape de `GET /api/admin/messages`. */

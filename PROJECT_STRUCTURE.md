@@ -62,6 +62,7 @@ wedproject/
     ├── hooks/
     │   ├── useCountdown.ts             # Countdown timer hook (1s interval)
     │   ├── useAdminFetch.ts            # Generic {data,loading,error,retry} fetch hook (WS6, admin pages)
+    │   ├── useTableSort.ts             # Generic column-sort hook (WS12, admin tables)
     │   └── usePrefersReducedMotion.ts  # SSR-safe prefers-reduced-motion boolean (GSAP spots)
     │
     ├── lib/
@@ -109,12 +110,20 @@ wedproject/
         ├── favicon.ico             # App-dir file convention: auto-serves /favicon.ico + <link rel="icon">
         │
         ├── admin/
-        │   ├── page.tsx            # Auth gate + tab switch + 3× useAdminFetch + mutation handlers (~238 lines post-WS6)
-        │   └── _components/        # Admin UI extracted from the former God component (WS6)
-        │       ├── AdminDashboard.tsx     # Stat grid + StatCard
-        │       ├── AdminGuestsTable.tsx   # Guests table + StatusBadge + inline actionError
-        │       ├── AdminSongsTable.tsx    # Songs table + SongStatusBadge + confirm modal
-        │       └── AdminMessages.tsx      # Guest message cards
+        │   ├── page.tsx            # Auth gate + sticky header (logout/refresh/Ver Sitio) + icon tabs (sliding pill) + 3× useAdminFetch + mutation handlers (WS12)
+        │   └── _components/        # Admin UI extracted from the former God component (WS6) + WS12 overhaul
+        │       ├── AdminDashboard.tsx     # Total Confirmados hero card + composition bar + StatCard grid
+        │       ├── AdminGuestsTable.tsx   # Responsive (desktop table/mobile cards) + search + filter + sort + pagination; StatusChip + CompanionPanel
+        │       ├── AdminSongsTable.tsx    # Same responsive UX; lucide actions; AnimatePresence delete modal
+        │       ├── AdminMessages.tsx      # Search + pagination + Reveal stagger
+        │       ├── StatCard.tsx           # StatCard (default + highlight hero) with optional lucide icon
+        │       ├── StatusChip.tsx         # Unified StatusChip + SongStatusChip (replaces duplicated status maps)
+        │       ├── AdminToolbar.tsx       # Search + status filter chips + result count (reusable)
+        │       ├── SortHeader.tsx         # Accessible <th> with sort button + aria-sort
+        │       ├── Pagination.tsx         # Page-size selector + numbered pager + range summary (zero deps)
+        │       ├── States.tsx             # EmptyState + TableSkeleton + ErrorState (shared table states)
+        │       ├── AdminToast.tsx         # Toast provider + useToast (framer AnimatePresence, zero deps)
+        │       └── types.ts               # Shared admin types (GuestWithCompanions, Stats, GuestMessage, responses)
         │
         ├── login/
         │   └── page.tsx            # Guest login (password → /api/auth/login → redirect /)
@@ -137,7 +146,8 @@ wedproject/
             └── admin/
                 ├── check/route.ts      # GET → {ok:true}/{ok:false}
                 ├── login/route.ts      # POST {password} → sets admin_auth cookie
-                ├── guests/route.ts     # GET → guests+companions+stats
+                ├── logout/route.ts     # POST → clears admin_auth cookie (WS12; whitelisted in proxy.ts so logout from an expired session still works)
+                ├── guests/route.ts     # GET → guests+companions+stats (stats include confirmedCompanions + totalConfirmed as of WS12)
                 │   └── [guestId]/
                 │       └── companions/
                 │           ├── route.ts                # POST — add companion (admin; resyncs num_companions)
@@ -155,7 +165,7 @@ The real security boundary is **`src/proxy.ts`** (the Next 16 middleware), not P
 - **Fail-closed:** if `INVITATION_CODE` or `ADMIN_PASSWORD` env vars are unset, **every** request returns `503` (`proxy.ts:15-21`).
 - **Whitelist (always allowed):** `/_next/*`, static asset extensions (png/jpg/css/js/woff…), `/api/auth/*`, `/login` (`proxy.ts:31-40`).
 - **Tier 1 — guest:** any path requires `site_auth` cookie `=== INVITATION_CODE` or `admin_auth` cookie `=== ADMIN_PASSWORD`; unauthenticated browser → redirect to `/login`, unauthenticated API → `401` (`proxy.ts:42-59`).
-- **Tier 2 — admin:** `/api/admin/*` (except `login`/`check`) and `DELETE /api/songs` require `admin_auth`; otherwise `401` (`proxy.ts:61-71`).
+- **Tier 2 — admin:** `/api/admin/*` (except `login`/`check`/`logout`) and `DELETE /api/songs` require `admin_auth`; otherwise `401` (`proxy.ts:62-71`).
 - **Prod test block:** `/test` and `/api/test/*` return `404` when `NODE_ENV !== development` (`proxy.ts:23-29`).
 - **Cookies:** `site_auth` (30 days) and `admin_auth` (24h) — both httpOnly, `secure` in prod, `sameSite=lax`.
 
@@ -229,7 +239,8 @@ Env-driven wrappers + boolean feature flags: `isSupabaseConfigured`, `isSupabase
 | GET    | `/api/youtube/search?q=`     | Guest/Admin  | Proxy YouTube Data API v3 search                   |
 | GET    | `/api/admin/check`           | Public*      | Returns whether `admin_auth` is set                 |
 | POST   | `/api/admin/login`           | Public*      | `{password}` → sets `admin_auth` cookie            |
-| GET    | `/api/admin/guests`          | **Admin**    | Guests + companions + aggregate stats              |
+| POST   | `/api/admin/logout`         | Public*      | Clears `admin_auth` cookie (WS12) — whitelisted in proxy so logout from an expired session still works |
+| GET    | `/api/admin/guests`          | **Admin**    | Guests + companions + aggregate stats (incl. `confirmedCompanions` + `totalConfirmed` as of WS12) |
 | POST   | `/api/admin/guests/[guestId]/companions` | **Admin** | Add companion (no MAX limit); resyncs `num_companions` |
 | DELETE | `/api/admin/guests/[guestId]/companions/[companionId]` | **Admin** | Remove companion; resyncs `num_companions` |
 | PATCH  | `/api/admin/songs`           | **Admin**    | `{songId,isApproved}` → approve/reject             |
@@ -243,13 +254,13 @@ Env-driven wrappers + boolean feature flags: `isSupabaseConfigured`, `isSupabase
 
 ## Admin Dashboard (`/admin`)
 
-Four tabs. Post-WS6, `src/app/admin/page.tsx` is the auth gate + tab switch + wiring (~238 lines); the UI lives in `src/app/admin/_components/` (`AdminDashboard`, `AdminGuestsTable`, `AdminSongsTable`, `AdminMessages`) and data fetching goes through `src/hooks/useAdminFetch.ts`:
-- **Dashboard** — total/confirmed/declined/pending/companions stats
-- **Invitados** — sortable guest table with expandable companion rows
-- **Canciones** — song moderation (approve/reject via `/api/admin/songs`, delete via `/api/songs`); reads the **public** `/api/songs`
-- **Mensajes** — guest messages (via `/api/admin/messages`)
+Four tabs. Post-WS6, `src/app/admin/page.tsx` was the auth gate + tab switch + wiring (~238 lines); WS12 elevated it into a sticky-header shell (Refrescar / Cerrar sesión / Ver Sitio) with an animated icon-tab switch (Framer `layoutId`) and toast feedback. The UI lives in `src/app/admin/_components/` (`AdminDashboard`, `AdminGuestsTable`, `AdminSongsTable`, `AdminMessages`, plus WS12 `StatusChip`/`AdminToolbar`/`SortHeader`/`Pagination`/`States`/`AdminToast`); data fetching goes through `src/hooks/useAdminFetch.ts` and column sort through `src/hooks/useTableSort.ts`:
+- **Dashboard** — hero **Total Confirmados** card (`stats.totalConfirmed`, WS12: confirmed guests + their companions) + zero-dep response-composition bar + total/confirmed/declined/pending/companions stats
+- **Invitados** — sortable + searchable + filterable + paginated + responsive table (stacked cards on mobile, sticky-header on desktop) with expandable companion rows
+- **Canciones** — same responsive table UX; song moderation (approve/reject via `/api/admin/songs`, delete via `/api/songs`); reads the **public** `/api/songs`
+- **Mensajes** — searchable + paginated guest messages (via `/api/admin/messages`)
 
-Mutations (approve/delete) refetch from the server (no optimistic client state); deletes confirm via a styled modal; errors surface inline (no `alert()`).
+Mutations (approve/delete/add-companion) refetch from the server (no optimistic client state); deletes confirm via an `AnimatePresence` modal; successes confirm via toast; errors surface inline (no `alert()`).
 
 ## Design System
 

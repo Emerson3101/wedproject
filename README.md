@@ -38,10 +38,11 @@ A modern, elegant wedding invitation and management website built for Alma & Cha
 
 ### Admin Features
 
-- **Dashboard** — Real-time statistics showing total RSVPs, confirmed, declined, pending, and companion counts
-- **Guest Management** — Sortable table with expandable rows showing companion details and messages, plus inline add/remove of companions per guest
-- **Song Moderation** — Approve/reject song submissions, delete inappropriate content, view vote counts
-- **Data Export** — All data accessible via API for external analysis
+- **Dashboard** — Real-time statistics: a highlighted **Total Confirmados** headcount (confirmed guests + their companions), an RSVP response-composition bar, plus confirmed/declined/pending totals and companion count
+- **Guest Management** — Sortable, searchable, filterable, paginated, responsive table (stacked cards on mobile) with expandable companion rows, inline add/remove companions (admin exempt from the 2-companion RSVP limit), toast feedback
+- **Song Moderation** — Same responsive table UX; approve/reject song submissions, delete inappropriate content (animated confirmation modal), view vote counts
+- **Messages** — Searchable, paginated read-only view of the personal messages guests leave on RSVP
+- **Session** — Cookie-based; header carries sign-out (`/api/admin/logout`) and per-section refresh
 
 ---
 
@@ -795,6 +796,19 @@ Authenticate as administrator.
 Sets the `admin_auth` cookie (httpOnly, secure in production, `sameSite=lax`,
 maxAge 24 hours).
 
+#### POST /api/admin/logout
+
+Clears the `admin_auth` cookie to sign out of the admin panel. Whitelisted in
+`src/proxy.ts` alongside `login`/`check` so a sign-out from an already-expired
+session still succeeds (no body required).
+
+**Response (200):**
+```json
+{
+  "ok": true
+}
+```
+
 #### GET /api/admin/messages
 
 Fetch the personal messages guests left in their RSVP. Messages are derived
@@ -839,7 +853,9 @@ Fetch all guests with companions.
     "confirmed": 35,
     "declined": 5,
     "pending": 10,
-    "totalCompanions": 42
+    "totalCompanions": 42,
+    "confirmedCompanions": 28,
+    "totalConfirmed": 63
   }
 }
 ```
@@ -882,9 +898,9 @@ The middleware (`src/proxy.ts`) runs on every request:
 
 1. **Environment Check** — Fails with 503 if `INVITATION_CODE` or `ADMIN_PASSWORD` are not set
 2. **Static Asset Exclusion** — Skips `/_next`, `/favicon.ico`, and static files
-3. **Auth Route Exclusion** — Allows `/api/auth/*`, `/api/admin/login`, `/api/admin/check`
+3. **Auth Route Exclusion** — Allows `/api/auth/*`, `/api/admin/login`, `/api/admin/check`, `/api/admin/logout`
 4. **Guest Check** — Requires `site_auth` or `admin_auth` cookie
-5. **Admin Check** — For `/api/admin/*` routes (except login/check), requires `admin_auth`
+5. **Admin Check** — For `/api/admin/*` routes (except login/check/logout), requires `admin_auth`
 6. **Production Protection** — Blocks `/test` and `/api/test/*` in production
 
 ### Voter Identification
@@ -989,36 +1005,49 @@ No global state library. Components use:
 
 ## Admin Dashboard
 
-Access: `/admin` (requires admin password)
+Access: `/admin` (requires admin password). The panel is a sticky-header shell
+with sign-out and a "Refrescar" action, four icon tabs with an animated sliding
+pill, and a login screen with show/hide password. Mutations surface success via
+toast notifications (zero new dependencies — Framer Motion + `lucide-react` only).
 
 ### Dashboard Tab
 
-Displays five stat cards:
+The metrics now include a prominent headcount metric for planning:
 
-1. **Total RSVP** — Total number of responses
-2. **Confirmed** — Guests attending
-3. **Declined** — Guests not attending
-4. **Pending** — Awaiting response
-5. **Companions** — Total accompanying guests
+1. **Total Confirmados (hero)** — `confirmed` guests + their companions, the real
+   number of people attending (catering/seating). Computed server-side at
+   `/api/admin/guests` as `stats.totalConfirmed` and `stats.confirmedCompanions`.
+2. **RSVP response-composition bar** — zero-dep stacked bar of
+   confirmed/declined/pending.
+3. **Total RSVP** — total number of responses (`stats.total`)
+4. **Confirmados** / **Declinaron** / **Pendientes** — by status
+5. **Acompañantes (total)** — `stats.totalCompanions` (all companions, any status)
 
 ### Guests Tab
 
-Sortable table with columns:
-- Name
-- Email
-- Phone
-- Status (badge: Confirmed/Declined/Pending)
-- Companion count (circle indicator)
-- Message (truncated)
-- Date (formatted)
+Sortable, searchable, filterable, paginated, responsive table with expandable
+rows. (Before WS12 the header row was not actually sortable, horizontal
+scrolling on mobile was hard to use, and long lists became unmanageable.)
 
-**Expandable Rows:** Click any guest to see their accompanying guests, plus inline
-companion management:
-- Companion name (and a per-companion delete button)
-- An inline add-companion form (input + button) at the bottom of the row
+- **Desktop (≥md):** real `<table>` with a **sticky header** (stays visible when
+  scrolling many rows), a **bounded height scroll container**, and **sortable**
+  column headers (Nombre, Email, Teléfono, Estado, Acompañantes, Fecha).
+  Clicking a guest's name button expands a companion panel inline.
+- **Mobile (<md):** stacked glass **cards** instead of a table — no horizontal
+  scroll, every field laid out vertically (`<dl>`), with the same expand/companion
+  management.
+- **Toolbar:** debounced free-text search (name/email/phone) + status filter chips
+  (Todos/Confirmados/Pendientes/Declinaron) with live counts.
+- **Pagination:** page-size selector (10/25/50), numbered pager with prev/next,
+  "Mostrando X–Y de Z" summary.
+- **Companions:** expand via a real `<button>` (keyboard-accessible,
+  `aria-expanded`); inline add-companion form and a per-companion delete using
+  lucide icons with a spinner on the mutating action; a success toast confirms.
+- **States:** skeleton rows while loading, a styled retry card on error, and an
+  empty state for no-results.
 
-The add/remove calls hit two admin-only routes
-(`POST /api/admin/guests/[guestId]/companions` and
+**Expandable companion management:** the add/remove calls hit two admin-only
+routes (`POST /api/admin/guests/[guestId]/companions` and
 `DELETE /api/admin/guests/[guestId]/companions/[companionId]`). These routes do
 **not** enforce the public 2-companion limit (the admin can add as many as the
 couple wants by exception) and resync `guests.num_companions` with the live row
@@ -1026,7 +1055,8 @@ count on every mutation.
 
 ### Songs Tab
 
-Management interface for playlist:
+Management interface for the playlist (same responsive/searchable/filterable/
+paginated table treatment as the Guests tab):
 
 **Stats Cards:**
 - Total songs
@@ -1034,27 +1064,33 @@ Management interface for playlist:
 - Pending approval
 - Most voted song
 
-**Table Columns:**
+**Table Columns (sortable, desktop sticky header):**
 - Video thumbnail
 - Title
 - Artist
 - Votes (circle badge)
-- Status (Approved/Pending)
+- Status (Approved/Pending via `<SongStatusChip>`)
 - Added by
 - Date
-- Actions (Approve/Reject, Delete)
+- Actions (Approve/Reject & Delete — lucide `Check`/`Circle`/`Trash2`)
+
+The delete confirmation modal is animated via Framer `AnimatePresence`. Approve
+and delete show a success toast. On mobile the songs render as stacked cards.
 
 ### Messages Tab
 
-Read-only view of the personal messages guests leave on the RSVP form. Data
-comes from `GET /api/admin/messages`, which derives messages from the
-`guests.message` column (no separate messages table). Each row shows:
+Read-only view of the personal messages guests leave on the RSVP form. Searchable
+(name/email/body) and paginated (9/18/36). Data comes from
+`GET /api/admin/messages`, which derives messages from the `guests.message`
+column (no separate messages table). Each card shows name/email, a unified
+`<StatusChip>`, the message body, and the submission date (newest first).
 
-- Guest name
-- Guest email
-- RSVP status (Confirmed/Declined/Pending badge)
-- The message body
-- Submission date (newest first)
+### Session
+
+The header carries a **Cerrar sesión** button that calls
+`POST /api/admin/logout` to clear the `admin_auth` cookie and return to the
+login screen. The logout route is whitelisted in `src/proxy.ts` (alongside
+`login`/`check`) so a sign-out from an already-expired session still succeeds.
 
 > The admin page fetches its song list from the **public** `GET /api/songs`
 > endpoint (not `/api/admin/songs`) — that admin-songs route is `PATCH`-only

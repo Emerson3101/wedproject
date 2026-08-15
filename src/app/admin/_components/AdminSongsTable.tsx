@@ -1,22 +1,32 @@
 "use client";
 
 /* ============================================
-   AdminSongsTable — pestaña de canciones
+   AdminSongsTable — pestaña de Canciones (WS12)
    --------------------------------------------
-   Recibe la lista de canciones (fuente: el hook en page.tsx) y
-   expone aprobar/eliminar. Posee su propia UI local:
-   - el modal de confirmación de borrado (reemplaza `window.confirm`)
-   - el error de una acción puntual (reemplaza `alert`)
-   Las mutaciones llaman a callbacks del padre; tras éxito el padre
-   re-pide la lista (`retry`), así el servidor es fuente única y no
-   hace falta estado de sobreescritura optimista (sin setState-in-effect).
+   Mismas mejoras que AdminGuestsTable:
+   - desktop: tabla con encabezado sticky + sort
+   - móvil: tarjetas apiladas (sin scroll horizontal)
+   - buscador + filtro por estado + paginación
+   - acciones con iconos lucide (Check/Circle/Trash2)
+   - modal de confirmación envuelto en AnimatePresence
+   - tarjetas de stats consistentes con StatCard
+   El servidor sigue siendo fuente única de verdad.
    ============================================ */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
-import { formatAdminDate } from "@/lib/utils";
+import { Check, Circle, Trash2, Music, X } from "lucide-react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { formatAdminDate, cn } from "@/lib/utils";
 import type { Song } from "@/lib/supabase";
 import { StatCard } from "./StatCard";
+import { SongStatusChip } from "./StatusChip";
+import { AdminToolbar, type FilterOption } from "./AdminToolbar";
+import { SortHeader } from "./SortHeader";
+import { Pagination } from "./Pagination";
+import { EmptyState, ErrorState, TableSkeleton } from "./States";
+import { useToast } from "./AdminToast";
+import { useTableSort } from "@/hooks/useTableSort";
 
 interface AdminSongsTableProps {
   songs: Song[];
@@ -27,17 +37,7 @@ interface AdminSongsTableProps {
   onDeleteSong: (songId: string) => Promise<void>;
 }
 
-function SongStatusBadge({ isApproved }: { isApproved: boolean }) {
-  return (
-    <span
-      className={`inline-block px-3 py-1 rounded-full text-xs uppercase tracking-wider ${
-        isApproved ? "bg-sage/20 text-sage" : "bg-silver/20 text-silver"
-      }`}
-    >
-      {isApproved ? "Aprobada" : "Pendiente"}
-    </span>
-  );
-}
+const EASE = [0.16, 1, 0.3, 1] as const;
 
 export function AdminSongsTable({
   songs,
@@ -47,22 +47,32 @@ export function AdminSongsTable({
   onToggleApproval,
   onDeleteSong,
 }: AdminSongsTableProps) {
+  const { toast } = useToast();
+  const prefersReduced = useReducedMotion();
   const [deleteTarget, setDeleteTarget] = useState<Song | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
 
-  const songStats = {
-    total: songs.length,
-    approved: songs.filter((s) => s.is_approved).length,
-    pending: songs.filter((s) => !s.is_approved).length,
-    topSong: songs.length > 0 ? songs.reduce((a, b) => (a.votes > b.votes ? a : b)) : null,
-  };
+  // --- Filtros / búsqueda / paginación ---
+  const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const { sortKey, direction, toggle, sortBy } = useTableSort<Song>("created_at", "desc");
 
   const handleToggle = async (song: Song) => {
     setActionError(null);
+    setPendingId(song.id);
     try {
       await onToggleApproval(song);
+      toast("success", song.is_approved ? "Canción desaprobada" : "Canción aprobada");
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Error al actualizar la canción");
+      const msg = err instanceof Error ? err.message : "Error al actualizar la canción";
+      setActionError(msg);
+      toast("error", msg);
+    } finally {
+      setPendingId(null);
     }
   };
 
@@ -71,90 +81,268 @@ export function AdminSongsTable({
     setDeleteTarget(null);
     if (!target) return;
     setActionError(null);
+    setPendingId(target.id);
     try {
       await onDeleteSong(target.id);
+      toast("success", `Canción eliminada: ${target.title}`);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Error al eliminar la canción");
+      const msg = err instanceof Error ? err.message : "Error al eliminar la canción";
+      setActionError(msg);
+      toast("error", msg);
+    } finally {
+      setPendingId(null);
     }
   };
 
+  const onSearchChange = (v: string) => { setSearch(v); setPage(1); };
+  const onFilterChange = (k: string) => { setActiveFilter(k); setPage(1); };
+  const onPageSizeChange = (n: number) => { setPageSize(n); setPage(1); };
+
+  // --- Stats de canciones (sin filtrar) ---
+  const songStats = useMemo(() => ({
+    total: songs.length,
+    approved: songs.filter((s) => s.is_approved).length,
+    pending: songs.filter((s) => !s.is_approved).length,
+    topSong: songs.length > 0 ? songs.reduce((a, b) => (a.votes > b.votes ? a : b)) : null,
+  }), [songs]);
+
+  // --- Filtrado / orden / paginación ---
+  const filtered = useMemo(() => {
+    let list = songs;
+    if (activeFilter === "approved") list = list.filter((s) => s.is_approved);
+    else if (activeFilter === "pending") list = list.filter((s) => !s.is_approved);
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter((s) =>
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q) ||
+        (s.added_by ?? "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [songs, activeFilter, search]);
+
+  const sorted = useMemo(
+    () =>
+      sortBy(filtered, {
+        title: (s) => s.title.toLowerCase(),
+        artist: (s) => s.artist.toLowerCase(),
+        votes: (s) => s.votes,
+        status: (s) => (s.is_approved ? "approved" : "pending"),
+        added_by: (s) => (s.added_by ?? "").toLowerCase() || null,
+        created_at: (s) => new Date(s.created_at),
+      }),
+    [filtered, sortBy]
+  );
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const paged = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const filterOptions: FilterOption[] = [
+    { key: "all", label: "Todas", count: songStats.total },
+    { key: "approved", label: "Aprobadas", count: songStats.approved },
+    { key: "pending", label: "Pendientes", count: songStats.pending },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Tarjetas de estadísticas */}
+      {/* === Tarjetas de estadísticas === */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Total Canciones" value={songStats.total} color="burgundy" />
-        <StatCard label="Aprobadas" value={songStats.approved} color="sage" />
-        <StatCard label="Pendientes" value={songStats.pending} color="silver" />
-        <div className="glass p-6 text-center">
+        <StatCard label="Total Canciones" value={songStats.total} color="burgundy" icon={Music} />
+        <StatCard label="Aprobadas" value={songStats.approved} color="sage" icon={Check} />
+        <StatCard label="Pendientes" value={songStats.pending} color="silver" icon={Circle} />
+        <div className="glass p-6 text-center flex flex-col justify-center">
           <div className="text-body text-sm text-burgundy/60 uppercase tracking-wider mb-3">
             Más votada
           </div>
           <p className="text-burgundy font-medium text-sm truncate">
-            {songStats.topSong ? `${songStats.topSong.title}` : "—"}
+            {songStats.topSong ? songStats.topSong.title : "—"}
           </p>
           {songStats.topSong && (
-            <p className="text-burgundy/40 text-xs">{songStats.topSong.votes} votos</p>
+            <p className="text-burgundy/50 text-xs tabular-nums">
+              {songStats.topSong.votes} votos
+            </p>
           )}
         </div>
       </div>
 
-      {/* Error de una acción concreta (toggle/eliminar) */}
-      {actionError && (
-        <div className="glass p-4 border-l-4 border-rose">
-          <p className="text-rose text-sm">{actionError}</p>
-          <button
-            onClick={() => setActionError(null)}
-            className="text-burgundy/50 text-xs mt-1 hover:text-burgundy underline"
+      {/* === Error de acción puntual === */}
+      <AnimatePresence>
+        {actionError && (
+          <motion.div
+            initial={prefersReduced ? false : { opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="glass p-4 border-l-4 border-rose flex items-center justify-between gap-3"
+            role="alert"
           >
-            Cerrar
-          </button>
-        </div>
+            <p className="text-rose text-sm">{actionError}</p>
+            <button
+              onClick={() => setActionError(null)}
+              aria-label="Cerrar"
+              className="text-burgundy/50 hover:text-burgundy transition-colors flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {songs.length > 0 && (
+        <AdminToolbar
+          search={search}
+          onSearchChange={onSearchChange}
+          searchPlaceholder="Buscar por título, artista o autor..."
+          filters={filterOptions}
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
+          resultCount={sorted.length}
+          totalCount={songs.length}
+        />
       )}
 
-      {/* Tabla de canciones */}
-      <div className="glass p-8 overflow-x-auto">
+      <div className="glass p-4 sm:p-6">
         {loading ? (
-          <p className="text-burgundy/60 text-center py-8">Cargando canciones...</p>
+          <TableSkeleton className="px-2 py-4" />
         ) : error ? (
-          <div className="text-center py-8">
-            <p className="text-rose mb-2">{error}</p>
-            <button onClick={onRetry} className="btn-outline text-sm">
-              Reintentar
-            </button>
-          </div>
+          <ErrorState error={error} onRetry={onRetry} className="py-12" />
         ) : songs.length === 0 ? (
-          <p className="text-burgundy/60 text-center py-8">No hay canciones aún.</p>
+          <EmptyState
+            icon={Music}
+            title="No hay canciones aún"
+            description="Las solicitudes de canciones aparecerán aquí cuando los invitados participen en el playlist."
+          />
+        ) : sorted.length === 0 ? (
+          <EmptyState
+            icon={Music}
+            title="Sin resultados"
+            description="Ninguna canción coincide con la búsqueda o el filtro aplicado."
+          />
         ) : (
-          <table className="w-full text-center">
-            <thead>
-              <tr className="border-b border-champagne bg-white/5">
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Video</th>
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Título</th>
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Artista</th>
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Votos</th>
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Estado</th>
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Agregado por</th>
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Fecha</th>
-                <th className="pb-5 px-6 text-burgundy text-sm uppercase tracking-wider">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {songs.map((song) => (
-                <tr
+          <>
+            {/* === Desktop: tabla ordenable con encabezado sticky === */}
+            <div
+              className="hidden md:block max-h-[32rem] overflow-auto rounded-xl border border-champagne/20 [scrollbar-width:thin]"
+              role="region"
+              aria-label="Tabla de canciones"
+            >
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-wine-deep/90 backdrop-blur-md border-b border-champagne/40">
+                    <SortHeader sortKey="title" label="Título" activeKey={sortKey} direction={direction} onToggle={toggle} align="left" />
+                    <SortHeader sortKey="artist" label="Artista" activeKey={sortKey} direction={direction} onToggle={toggle} align="left" />
+                    <SortHeader sortKey="votes" label="Votos" activeKey={sortKey} direction={direction} onToggle={toggle} />
+                    <SortHeader sortKey="status" label="Estado" activeKey={sortKey} direction={direction} onToggle={toggle} />
+                    <SortHeader sortKey="added_by" label="Autor" activeKey={sortKey} direction={direction} onToggle={toggle} />
+                    <SortHeader sortKey="created_at" label="Fecha" activeKey={sortKey} direction={direction} onToggle={toggle} />
+                    <th scope="col" className="pb-4 px-3 text-burgundy text-xs uppercase tracking-wider text-center">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paged.map((song) => (
+                    <tr
+                      key={song.id}
+                      className="border-b border-champagne/20 hover:bg-white/5 transition-colors"
+                    >
+                      <td className="py-4 px-3">
+                        <div className="flex items-center gap-3">
+                          {song.youtube_video_id ? (
+                            <a
+                              href={`https://www.youtube.com/watch?v=${song.youtube_video_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="relative block w-16 h-10 rounded overflow-hidden flex-shrink-0"
+                              aria-label={`Ver ${song.title} en YouTube (se abre en nueva pestaña)`}
+                            >
+                              <Image
+                                src={`https://img.youtube.com/vi/${song.youtube_video_id}/default.jpg`}
+                                alt={song.title}
+                                fill
+                                sizes="64px"
+                                className="object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <div className="w-16 h-10 rounded bg-burgundy/10 flex items-center justify-center flex-shrink-0">
+                              <Music className="w-4 h-4 text-burgundy/30" aria-hidden />
+                            </div>
+                          )}
+                          <span className="text-burgundy font-medium text-sm truncate">
+                            {song.title}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-3 text-burgundy/85 text-sm">{song.artist}</td>
+                      <td className="py-4 px-3">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-burgundy/10 text-burgundy text-sm font-medium tabular-nums">
+                          {song.votes}
+                        </span>
+                      </td>
+                      <td className="py-4 px-3"><SongStatusChip isApproved={song.is_approved} /></td>
+                      <td className="py-4 px-3 text-burgundy/80 text-sm">{song.added_by}</td>
+                      <td className="py-4 px-3 text-burgundy/70 text-xs whitespace-nowrap">
+                        {formatAdminDate(new Date(song.created_at))}
+                      </td>
+                      <td className="py-4 px-3">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleToggle(song)}
+                            disabled={pendingId === song.id}
+                            aria-label={song.is_approved ? "Desaprobar canción" : "Aprobar canción"}
+                            title={song.is_approved ? "Desaprobar" : "Aprobar"}
+                            className={cn(
+                              "inline-flex items-center justify-center w-8 h-8 rounded-full transition-all disabled:opacity-50",
+                              song.is_approved
+                                ? "text-sage hover:bg-sage/15"
+                                : "text-burgundy/60 hover:bg-silver/15 hover:text-burgundy"
+                            )}
+                          >
+                            {pendingId === song.id ? (
+                              <Circle className="w-4 h-4 animate-spin" aria-hidden />
+                            ) : song.is_approved ? (
+                              <Check className="w-4 h-4" aria-hidden />
+                            ) : (
+                              <Circle className="w-4 h-4" aria-hidden />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(song)}
+                            disabled={pendingId === song.id}
+                            aria-label={`Eliminar ${song.title}`}
+                            title="Eliminar"
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-full text-rose/60 hover:text-rose hover:bg-rose/10 transition-all disabled:opacity-50"
+                          >
+                            <Trash2 className="w-4 h-4" aria-hidden />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* === Móvil: tarjetas apiladas === */}
+            <div className="md:hidden space-y-3">
+              {paged.map((song) => (
+                <article
                   key={song.id}
-                  className="border-b border-champagne/30 hover:bg-white/5 transition-colors"
+                  className="rounded-xl border border-champagne/30 bg-wine-deep/30 p-4"
                 >
-                  {/* Miniatura */}
-                  <td className="py-5 px-6">
+                  <div className="flex items-start gap-3 mb-3">
                     {song.youtube_video_id ? (
                       <a
                         href={`https://www.youtube.com/watch?v=${song.youtube_video_id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="relative block w-20 h-12 rounded overflow-hidden mx-auto"
+                        className="relative block w-20 h-12 rounded overflow-hidden flex-shrink-0"
+                        aria-label={`Ver ${song.title} en YouTube`}
                       >
                         <Image
-                          src={`https://img.youtube.com/vi/${song.youtube_video_id}/default.jpg`}
+                          src={`https://img.youtube.com/vi/${song.youtube_video_id}/mqdefault.jpg`}
                           alt={song.title}
                           fill
                           sizes="80px"
@@ -162,78 +350,122 @@ export function AdminSongsTable({
                         />
                       </a>
                     ) : (
-                      <div className="w-20 h-12 rounded bg-burgundy/5 flex items-center justify-center mx-auto">
-                        <span className="text-burgundy/20 text-xs">Sin video</span>
+                      <div className="w-20 h-12 rounded bg-burgundy/10 flex items-center justify-center flex-shrink-0">
+                        <Music className="w-5 h-5 text-burgundy/30" aria-hidden />
                       </div>
                     )}
-                  </td>
-                  <td className="py-5 px-6 text-burgundy font-medium text-sm">{song.title}</td>
-                  <td className="py-5 px-6 text-burgundy/80 text-sm">{song.artist}</td>
-                  <td className="py-5 px-6 text-burgundy">
-                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-burgundy/5 text-sm font-medium">
-                      {song.votes}
-                    </span>
-                  </td>
-                  <td className="py-5 px-6">
-                    <SongStatusBadge isApproved={song.is_approved} />
-                  </td>
-                  <td className="py-5 px-6 text-burgundy/80 text-sm">{song.added_by}</td>
-                  <td className="py-5 px-6 text-burgundy/70 text-xs">
-                    {formatAdminDate(new Date(song.created_at))}
-                  </td>
-                  <td className="py-5 px-6">
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-burgundy font-medium text-sm truncate">{song.title}</p>
+                      <p className="text-burgundy/70 text-sm truncate">{song.artist}</p>
+                      <p className="text-burgundy/50 text-xs mt-0.5">por {song.added_by}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <SongStatusChip isApproved={song.is_approved} />
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-burgundy/10 text-burgundy text-xs font-medium tabular-nums">
+                        {song.votes}
+                      </span>
+                      <span className="text-burgundy/50 text-xs">
+                        {formatAdminDate(new Date(song.created_at))}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleToggle(song)}
-                        className={`p-1.5 rounded-full transition-all text-xs ${
-                          song.is_approved ? "text-sage hover:bg-sage/10" : "text-silver hover:bg-silver/10"
-                        }`}
+                        disabled={pendingId === song.id}
+                        aria-label={song.is_approved ? "Desaprobar canción" : "Aprobar canción"}
                         title={song.is_approved ? "Desaprobar" : "Aprobar"}
+                        className={cn(
+                          "inline-flex items-center justify-center w-9 h-9 rounded-full transition-all disabled:opacity-50",
+                          song.is_approved
+                            ? "text-sage hover:bg-sage/15"
+                            : "text-burgundy/60 hover:bg-silver/15 hover:text-burgundy"
+                        )}
                       >
-                        {song.is_approved ? "✓" : "○"}
+                        {pendingId === song.id ? (
+                          <Circle className="w-4 h-4 animate-spin" aria-hidden />
+                        ) : song.is_approved ? (
+                          <Check className="w-4 h-4" aria-hidden />
+                        ) : (
+                          <Circle className="w-4 h-4" aria-hidden />
+                        )}
                       </button>
                       <button
                         onClick={() => setDeleteTarget(song)}
-                        className="p-1.5 rounded-full text-rose/60 hover:text-rose hover:bg-rose/10 transition-all"
+                        disabled={pendingId === song.id}
+                        aria-label="Eliminar canción"
                         title="Eliminar"
+                        className="inline-flex items-center justify-center w-9 h-9 rounded-full text-rose/60 hover:text-rose hover:bg-rose/10 transition-all disabled:opacity-50"
                       >
-                        ✕
+                        <Trash2 className="w-4 h-4" aria-hidden />
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </div>
+                </article>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-champagne/20">
+              <Pagination
+                page={currentPage}
+                pageSize={pageSize}
+                total={sorted.length}
+                onPageChange={setPage}
+                onPageSizeChange={onPageSizeChange}
+              />
+            </div>
+          </>
         )}
       </div>
 
-      {/* Modal de confirmación de borrado (reemplaza window.confirm) */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-burgundy/30 backdrop-blur-sm p-4">
-          <div className="glass p-8 max-w-md w-full text-center">
-            <h3 className="text-display text-2xl text-burgundy mb-3">Eliminar canción</h3>
-            <p className="text-burgundy/70 text-sm mb-6">
-              ¿Estás seguro de que quieres eliminar{" "}
-              <strong className="text-burgundy">{deleteTarget.title}</strong>?
-            </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="btn-outline text-sm"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="btn-primary text-sm"
-              >
-                Eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* === Modal de confirmación de borrado (AnimatePresence) === */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            initial={prefersReduced ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setDeleteTarget(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-burgundy/15 backdrop-blur-sm p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-song-title"
+          >
+            <motion.div
+              initial={prefersReduced ? false : { opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ duration: 0.25, ease: EASE }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-strong p-8 max-w-md w-full text-center"
+            >
+              <h3 id="delete-song-title" className="text-display text-2xl text-burgundy mb-3">
+                Eliminar canción
+              </h3>
+              <p className="text-burgundy/70 text-sm mb-6">
+                ¿Estás seguro de que quieres eliminar{" "}
+                <strong className="text-burgundy">{deleteTarget.title}</strong>?
+              </p>
+              <div className="flex gap-3 justify-center">
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  className="btn-outline text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="btn-primary text-sm"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

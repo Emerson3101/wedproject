@@ -59,7 +59,12 @@ export default function proxy(request: NextRequest) {
   }
 
   // 6. Restricciones administrativas
-  const isAdminAuthRoute = pathname === "/api/admin/login" || pathname === "/api/admin/check";
+  // Las rutas de auth (login/check/logout) no requieren admin_auth vigente:
+  // logout debe poder borrar una cookie aun si la sesión ya caducó.
+  const isAdminAuthRoute =
+    pathname === "/api/admin/login" ||
+    pathname === "/api/admin/check" ||
+    pathname === "/api/admin/logout";
   const isAdminRoute = (pathname.startsWith("/api/admin/") && !isAdminAuthRoute) ||
                        (pathname === "/api/songs" && method === "DELETE");
 

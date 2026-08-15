@@ -165,11 +165,12 @@ also a gotcha: changing `INVITATION_CODE` logged-out every guest.
    redirect to `/login` (`proxy.ts:50-59`). So **every protected API call without a valid
    cookie is 401**, and every protected page without a valid cookie bounces to login.
 6. **Admin gate.** Define admin-auth routes exempt from the admin requirement:
-   `pathname === "/api/admin/login" || pathname === "/api/admin/check"`
-   (`isAdminAuthRoute`, `proxy.ts:62`). Then a route needs admin **if** it's an
-   `/api/admin/*` route that is *not* an auth route, **or** it's `DELETE /api/songs`
-   (`isAdminRoute`, `proxy.ts:63-64`). If such a route is hit without `admin_auth` → `401`
-   JSON "No autorizado. Requiere sesión de administrador." (`proxy.ts:66-71`).
+   `pathname === "/api/admin/login" || pathname === "/api/admin/check" || pathname ===
+   "/api/admin/logout"` (`isAdminAuthRoute`, `proxy.ts:64-67` — `logout` added WS12).
+   Then a route needs admin **if** it's an `/api/admin/*` route that is *not* an auth route,
+   **or** it's `DELETE /api/songs` (`isAdminRoute`, `proxy.ts:68-69`). If such a route is hit
+   without `admin_auth` → `401` JSON "No autorizado. Requiere sesión de administrador."
+   (`proxy.ts:71-76`).
 
 ### How the two logins work (correction of an earlier assumption)
 
@@ -185,6 +186,10 @@ field that `POST`s `{ password }` to `/api/auth/login` (`login/page.tsx:26-30`) 
 - `POST /api/admin/login` — body `{ password }`; compares to `ADMIN_PASSWORD`; on match sets
   `admin_auth` (httpOnly, 24h) and returns **`{ ok: true }`** (note: `ok`, not `success` —
   unlike the guest endpoint).
+- `POST /api/admin/logout` (WS12) — no body; overwrites `admin_auth` with `maxAge: 0` to clear
+  the cookie immediately and returns `{ ok: true }`. Whitelisted in `proxy.ts` (`isAdminAuthRoute`
+  alongside `login`/`check`) so a sign-out from an already-expired session still succeeds (the
+  admin-gate 401 cannot pre-empt the call that's discarding the stale cookie).
 
 ### Defense-in-depth: routes re-check the cookie themselves
 
@@ -503,29 +508,44 @@ plus an external "Ver en YouTube" link.
 
 ### 5.3 Admin moderation (`/admin` page, `src/app/admin/page.tsx`)
 
-**Structure (post-WS6 refactor):** `page.tsx` is now ~238 lines — the auth gate + a 4-tab
-switch + data wiring (one `useAdminFetch<T>` hook per endpoint + mutation handlers that
+**Structure (post-WS6 refactor, elevated WS12):** `page.tsx` is the auth gate + a sticky
+header (Refrescar / Cerrar sesión / Ver Sitio) + an icon-tab switch with a Framer `layoutId`
+sliding pill + data wiring (one `useAdminFetch<T>` hook per endpoint + mutation handlers that
 refetch the list from the server, which stays the single source of truth). The heavy UI lives
 in `src/app/admin/_components/` (`AdminDashboard`, `AdminGuestsTable`, `AdminSongsTable`,
-`AdminMessages`, `StatCard`, shared `types.ts`), and the duplicated fetch/retry logic moved
-into `src/hooks/useAdminFetch.ts` (returns `{data, loading, error, retry}`). The `useAdminFetch`
-effect wraps its pre-flight + fetch chain in `queueMicrotask(...)` to satisfy the
-`react-hooks/set-state-in-effect` lint rule; `retry()` increments a tick to force a refetch.
-Mutations (approve/delete) never mutate local state optimistically — they call the server,
-then `retry()` (zero setState-in-effect on the client). `window.confirm` → a styled delete
-modal; `alert` → inline `actionError` UI. Previously all of this was a ~894-line God component
-with 3 duplicated `useEffect` fetch blocks and `window.alert`/`confirm`/`location.reload()`.
+`AdminMessages`, `StatCard`, and — added WS12 — `StatusChip`, `AdminToolbar`, `SortHeader`,
+`Pagination`, `States`, `AdminToast`), and the duplicated fetch/retry logic moved into
+`src/hooks/useAdminFetch.ts` (returns `{data, loading, error, retry}`) with column sort in
+`src/hooks/useTableSort.ts`. The `useAdminFetch` effect wraps its pre-flight + fetch chain in
+`queueMicrotask(...)` to satisfy the `react-hooks/set-state-in-effect` lint rule; `retry()`
+increments a tick to force a refetch. Mutations (approve/delete/add-companion) never mutate
+local state optimistically — they call the server, then `retry()` (zero setState-in-effect on
+the client), and surface success via the `AdminToast` provider. `window.confirm` → an
+`AnimatePresence` delete modal; `alert` → inline `actionError` UI. Previously all of this was
+a ~894-line God component with 3 duplicated `useEffect` fetch blocks and
+`window.alert`/`confirm`/`location.reload()`.
 
 The dashboard has 4 tabs (Dashboard / Invitados / Canciones / Mensajes):
 
 - **Invitados** — `GET /api/admin/guests` (`admin/guests/route.ts`): admin check, fetches all
-  `guests` (newest-first) + all `companions`, groups companions by guest, and computes
-  `stats {total, confirmed, declined, pending, totalCompanions}` (`:54-105`). Returns
+  `guests` (newest-first) + all `companions`, groups companions by guest, and computes `stats
+  {total, confirmed, declined, pending, totalCompanions, confirmedCompanions, totalConfirmed}`
+  (`:80-100` — `confirmedCompanions`/`totalConfirmed` added WS12). Returns
   `{ok:true, guests:[{guest, companions}], stats}`.
-  - **Inline companion management (admin override of `MAX_COMPANIONS`):** `AdminGuestsTable.tsx`
-    renders an inline add-companion form (input + button) per expanded guest row and a per-
-    companion delete button. The admin callers in `admin/page.tsx`
-    (`handleAddCompanion` / `handleDeleteCompanion`) hit two new admin-only routes:
+  - **Response-arisen table UX (WS12):** `AdminGuestsTable.tsx` is now responsive + sortable
+    + searchable + filterable + paginated, zero new deps. Desktop (≥md) renders a real `<table>`
+    with a **sticky `<thead>`** and a bounded-height scroll container; mobile (<md) renders
+    stacked glass cards (no horizontal scroll — solves the reported overflow UX pain). Column
+    headers are `SortHeader` buttons (`aria-sort`, lucide chevron) wired through
+    `useTableSort`; the `AdminToolbar` provides a debounced search (name/email/phone) + status
+    filter chips with live counts; `Pagination` offers a page-size selector (10/25/50).
+    Expand/collapse moved from a row `<tr onClick>` to a real `<button>` (`aria-expanded` /
+    `aria-controls`); `CompanionPanel` is the shared companion UI (list + inline add form +
+    lucide `Trash2`/`Loader2` delete with a spinner on the mutating action). Successes confirm
+    via `useToast`.
+  - **Inline companion management (admin override of `MAX_COMPANIONS`):** unchanged backend —
+    `AdminGuestsTable` calls the admin callers in `admin/page.tsx`
+    (`handleAddCompanion` / `handleDeleteCompanion`) which hit
     `POST /api/admin/guests/[guestId]/companions` and
     `DELETE /api/admin/guests/[guestId]/companions/[companionId]` (both registered in §3).
     These routes **do not apply the public `MAX_COMPANIONS = 2` limit** — the admin can add

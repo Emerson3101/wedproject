@@ -45,6 +45,10 @@ export async function GET() {
         declined: 0,
         pending: 0,
         totalCompanions: 0,
+        // Headcount de confirmados: invitados confirmados + acompañantes de
+        // los confirmados (métrica de catering/seating — WS12 admin overhaul).
+        confirmedCompanions: 0,
+        totalConfirmed: 0,
       },
     });
   }
@@ -78,12 +82,25 @@ export async function GET() {
   }));
 
   // Compute stats
+  const confirmedGuestIds = new Set(
+    guests.filter((g) => g.status === "confirmed").map((g) => g.id)
+  );
+  let confirmedCompanions = 0;
+  for (const [guestId, list] of companionsByGuest) {
+    if (confirmedGuestIds.has(guestId)) confirmedCompanions += list.length;
+  }
+  const confirmed = guests.filter((g) => g.status === "confirmed").length;
+
+  // `totalConfirmed` = headcount real que asistirá:
+  // invitados confirmados + acompañantes de esos confirmados.
   const stats = {
     total: guests.length,
-    confirmed: guests.filter((g) => g.status === "confirmed").length,
+    confirmed,
     declined: guests.filter((g) => g.status === "declined").length,
     pending: guests.filter((g) => g.status === "pending").length,
     totalCompanions: companions?.length || 0,
+    confirmedCompanions,
+    totalConfirmed: confirmed + confirmedCompanions,
   };
 
   return NextResponse.json({ ok: true, guests: result, stats });
