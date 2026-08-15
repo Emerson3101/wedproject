@@ -30,7 +30,7 @@ interface AdminMessagesProps {
 
 function MessageCard({ message }: { message: GuestMessage }) {
   return (
-    <div className="glass p-6 hover:bg-white/5 transition-colors h-full flex flex-col">
+    <div className="glass p-6 hover:bg-white/5 transition-colors h-full min-w-0 flex flex-col">
       <div className="flex items-start justify-between gap-4 mb-3">
         <div className="min-w-0">
           <p className="text-display text-lg text-burgundy font-medium truncate">
@@ -40,7 +40,7 @@ function MessageCard({ message }: { message: GuestMessage }) {
         </div>
         <StatusChip status={message.status as GuestStatus} className="flex-shrink-0" />
       </div>
-      <div className="bg-white/5 rounded-lg p-4 mb-3 flex-1">
+      <div className="bg-white/5 rounded-lg p-4 mb-3 flex-1 min-w-0">
         <p className="text-burgundy/95 text-body whitespace-normal break-words leading-relaxed">
           {message.message}
         </p>
@@ -110,7 +110,7 @@ export function AdminMessages({ messages, loading, error, onRetry }: AdminMessag
       )}
 
       {loading ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <SkeletonCard key={i} variant="default" />
           ))}
@@ -133,9 +133,9 @@ export function AdminMessages({ messages, loading, error, onRetry }: AdminMessag
         />
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {paged.map((msg, i) => (
-              <Reveal key={msg.id} delay={i * 0.04} className="h-full">
+              <Reveal key={msg.id} delay={i * 0.04} className="h-full min-w-0">
                 <MessageCard message={msg} />
               </Reveal>
             ))}
