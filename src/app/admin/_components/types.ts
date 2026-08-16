@@ -1,4 +1,4 @@
-import type { Guest, Companion, Song } from "@/lib/supabase";
+import type { Guest, Companion, Song, SeatingTable, SeatingSeat } from "@/lib/supabase";
 
 /* ============================================
    TIPOS ADMIN — shapes específicos del panel
@@ -51,3 +51,72 @@ export interface GuestMessage {
 export type GuestsResponse = { guests: GuestWithCompanions[]; stats: Stats };
 export type SongsResponse = { songs: Song[] };
 export type MessagesResponse = { messages: GuestMessage[] };
+
+/* ============================================
+   MESAS — shapes proyectados del plano de sentado
+   --------------------------------------------
+   `GET /api/admin/seating` devuelve `tables` (cada una con sus
+   `seats` ya resueltos con info del invitado en vivo) y `pool`
+   (invitados confirmados con `lead_seated` y el drift flag).
+   ============================================ */
+
+/** Asiento resuelto (se une al lead en vivo para mostrar el side y detectar drift). */
+export interface SeatOccupant extends SeatingSeat {
+  /** Datos del lead en vivo (solo cuando `source==='rsvp'` y el invitado existe). */
+  guest_email?: string | null;
+  guest_side?: "bride" | "groom" | null;
+  /** Conteo vivo actual de companions del lead (para detectar drift). */
+  live_companion_count?: number;
+  /** true si el snapshot de companions se quedó chico/grande respecto al vivo. */
+  drift_suggested?: boolean;
+}
+
+/** Mesa con sus asientos poblados. */
+export interface SeatingTableWithSeats extends SeatingTable {
+  seats: SeatOccupant[];
+}
+
+/** Invitado confirmado junto con su companion list vivo, listo para sentar. */
+export interface ConfirmedParty {
+  guest: Guest;
+  companions: Companion[];
+  /** ¿El lead ya tiene una silla en alguna mesa? */
+  lead_seated: boolean;
+  /** ¿Existe ya alguna ocupación snapshot para este guest_id? */
+  seated_snapshot_count: number;
+}
+
+export interface SeatingStats {
+  tables: number;
+  total_seats: number;
+  occupied: number;
+  unseated_confirmed: number;
+}
+
+export const DEFAULT_SEATING_STATS: SeatingStats = {
+  tables: 0,
+  total_seats: 0,
+  occupied: 0,
+  unseated_confirmed: 0,
+};
+
+export interface SeatingResponse {
+  tables: SeatingTableWithSeats[];
+  pool: ConfirmedParty[];
+  stats: SeatingStats;
+}
+
+/** Contexto de move-mode: la silla que se está reubicando. */
+export interface MoveContext {
+  seatId: string;
+  label: string;
+  /** Origen (para highlight + evitar ofrecerse como target). */
+  originTableId: string;
+  originSeatIndex: number;
+}
+
+export const DEFAULT_SEATING: SeatingResponse = {
+  tables: [],
+  pool: [],
+  stats: DEFAULT_SEATING_STATS,
+};

@@ -63,3 +63,35 @@ export interface Song {
   is_approved: boolean;
   created_at: string;
 }
+
+/* --- Mesas (plano de sentado del admin) ---
+   Ver migration_update.sql §10. `guest_id` solo se enlaza al
+   *lead* (unconfirmed/RSVP confirmado), con FK ON DELETE SET NULL.
+   Los asientos de acompañantes son SNAPSHOT de strings
+   (`seat_label`, guest_id NULL); `submit_rsvp` borra y re-inserta
+   companions, por eso no hay FK a companions(id). Ver COMPENDIUM §10 #22. */
+export interface SeatingTable {
+  id: string;
+  name: string;
+  capacity: number;
+  display_order: number;
+  shape: "round" | "rect";
+  created_at: string;
+}
+
+export interface SeatingSeat {
+  id: string;
+  table_id: string;
+  /* Solo el lead confirmado. NULL = acompañante snapshot o invitado adhoc. */
+  guest_id: string | null;
+  /* Agrupa lead + companions snapshot del mismo asiento. Para adhoc = nanoid(). */
+  party_key: string;
+  /* Nombre snapshot del ocupante (se captura al sentar, no se resincroniza). */
+  seat_label: string;
+  is_lead: boolean;
+  /* Posición de la silla alrededor de la mesa (0..N-1). */
+  seat_index: number;
+  /* 'rsvp' = lead confirmado; 'companion' = snapshot de acompañante; 'adhoc' = invitado fuera del RSVP. */
+  source: "rsvp" | "companion" | "adhoc";
+  created_at: string;
+}

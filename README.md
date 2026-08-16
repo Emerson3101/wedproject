@@ -42,6 +42,7 @@ A modern, elegant wedding invitation and management website built for Alma & Cha
 - **Guest Management** — Sortable, searchable, filterable, paginated, responsive table (stacked cards on mobile) with expandable companion rows, inline add/remove companions (admin exempt from the 2-companion RSVP limit), toast feedback
 - **Song Moderation** — Same responsive table UX; approve/reject song submissions, delete inappropriate content (animated confirmation modal), view vote counts
 - **Messages** — Searchable, paginated read-only view of the personal messages guests leave on RSVP
+- **Mesas (Seating Plan / Plano de Sentado)** — Top-down visual per table (round or rectangular, per-table shape toggle); assign an RSVP lead + their companions (1 person = 1 chair) or add an ad-hoc guest + optional companions; companion names snapshotted at seating time (never resynced, see §10 #22 of the compendium for the drift chip). Per-chair rename/remove + per-party remove. Capacity server-enforced (409 on overflow). Partial unique index keeps an RSVP lead to one chair across the whole plan
 - **Session** — Cookie-based; header carries sign-out (`/api/admin/logout`) and per-section refresh
 
 ---
@@ -402,9 +403,10 @@ import { isSupabaseConfigured, isResendConfigured } from '@/lib/config';
 
 ### Schema Overview
 
-The database consists of five main tables with Row Level Security (RLS)
-enabled. (`song_likes` is created only by `migration_update.sql` — see the
-run-order note under [Database Setup](#database-setup) above.)
+The database consists of seven main tables with Row Level Security (RLS)
+enabled. (`song_likes`, `seating_tables` and `seating_seats` are created only by
+`migration_update.sql` — see the run-order note under
+[Database Setup](#database-setup) above.)
 
 #### guests Table
 
@@ -485,6 +487,40 @@ Created only by `migration_update.sql` (not `schema.sql`).
 
 Unique constraint `song_likes_voter_song_unique` on `(voter_id, song_id)`
 enforces the one-like-per-browser rule at the database level.
+
+#### seating_tables Table (WS-Mesas)
+
+Admin seating plan tables (the "Mesas" tab). Created only by `migration_update.sql` (§10 NUEVO — Mesas block).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique table identifier |
+| `name` | VARCHAR(100) | NOT NULL | Admin-set table name |
+| `capacity` | INTEGER | NOT NULL, `CHECK (capacity BETWEEN 1 AND 50)` | Maximum chairs; default `8`; also enforced server-side (409 on overflow) |
+| `display_order` | INTEGER | NOT NULL | Monotonic ordering on the grid; default `0`; first insert gets `max+1` |
+| `shape` | VARCHAR(16) | `'round' \| 'rect'`, default `'round'` | Top-down visual shape (admin toolbar toggle) |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
+
+#### seating_seats Table (WS-Mesas)
+
+One row per occupied chair. The "Mesas" tab reads + writes this table via `/api/admin/seating/*` (7 handlers).
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PRIMARY KEY | Unique seat identifier |
+| `table_id` | UUID | FOREIGN KEY | References `seating_tables.id` (`ON DELETE CASCADE` — dropping the table frees its chairs) |
+| `guest_id` | UUID | FOREIGN KEY, NULL | References `guests.id` (`ON DELETE SET NULL`). **Only the RSVP lead** carries a `guest_id`; companion snapshots + adhoc rows leave this `NULL` |
+| `party_key` | VARCHAR(64) | NOT NULL | Groups a lead + their companions. RSVP party: `party_key = guest_id`; adhoc party: `party_key = nanoid(10)` generated server-side |
+| `seat_label` | VARCHAR(255) | NOT NULL | **Snapshot** occupant name. Captured at insert + **never resynced** (see §10 #22) |
+| `is_lead` | BOOLEAN | NOT NULL | `true` = party head (RSVP lead or adhoc lead) |
+| `seat_index` | INTEGER | NOT NULL | Chair position around the table (0-based). Next insert = `max+1` |
+| `source` | VARCHAR(16) | NOT NULL | `'rsvp'` (RSVP lead) / `'companion'` (RSVP companion snapshot) / `'adhoc'` (manual external guest) |
+| `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
+
+Index `idx_seating_seats_guest_unique` is a **partial unique** index on
+`seating_seats(guest_id) WHERE guest_id IS NOT NULL` — an RSVP lead can occupy
+at most one chair across all tables. Adhoc + companion snapshots have
+`guest_id = NULL` so the partial index skips them.
 
 ### Stored Procedures
 
@@ -871,6 +907,126 @@ Approve or reject a song submission.
   "isApproved": true
 }
 ```
+
+#### Seating Endpoints (WS-Mesas — plano de sentado)
+
+Every seating route calls `requireAdmin({ wrapOk: true })` in-route for defense-in-depth on top of the `proxy.ts` `/api/admin/*` gate.
+
+#### GET /api/admin/seating
+
+Returns the full hydrated seating plan in one call.
+
+**Response (200):**
+```json
+{
+  "ok": true,
+  "tables": [
+    {
+      "id": "uuid",
+      "name": "Mesa 1",
+      "capacity": 8,
+      "shape": "round",
+      "display_order": 0,
+      "seats": [
+        {
+          "id": "uuid",
+          "guest_id": "uuid-or-null",
+          "party_key": "uuid-or-nanoid",
+          "seat_label": "John Doe",
+          "is_lead": true,
+          "seat_index": 0,
+          "source": "rsvp"
+        }
+      ]
+    }
+  ],
+  "pool": [
+    {
+      "guest_id": "uuid",
+      "name": "Jane Roe",
+      "companions": [
+        { "id": "uuid", "name": "Junior Roe", "table_id": null }
+      ]
+    }
+  ],
+  "stats": {
+    "totalTables": 5,
+    "totalSeats": 40,
+    "seated": 28,
+    "capacity": 40,
+    "poolCount": 4
+  }
+}
+```
+
+`pool` lists confirmed-but-unseated RSVP parties (lead + their companion snapshots) plus any adhoc parties that aren't attached to a table.
+
+#### POST /api/admin/seating/tables
+
+Create a new table.
+
+**Request:**
+```json
+{ "name": "Mesa 2", "capacity": 10, "shape": "rect" }
+```
+`shape` defaults to `"round"`. `display_order = max(existing)+1`.
+
+**Response (200):** `{ "ok": true, "table": {...} }`
+
+#### PATCH /api/admin/seating/tables/[tableId]
+
+Edit a table (dirty fields only).
+
+**Request:** any subset of `{ "name", "capacity", "shape" }`.
+
+**Response (200):** `{ "ok": true, "table": {...} }`
+
+#### DELETE /api/admin/seating/tables/[tableId]
+
+Delete the table. Cascades to `seating_seats` via `ON DELETE CASCADE`.
+
+**Response (200):** `{ "ok": true }`
+
+#### POST /api/admin/seating/tables/[tableId]/seats
+
+The dispatch route — seats a party of one or more people on this table. 1 person = 1 chair; capacity is enforced server-side (`409` on overflow).
+
+**Request (RSVP party):**
+```json
+{ "guestId": "uuid", "includeCompanions": true, "seatIndexes": [0, 3, 5] }
+```
+Fetches the confirmed guest + the live `companions` snapshot, allocates one chair per person. Lead insert: `guest_id`, `source='rsvp'`, `party_key=guestId`, `is_lead=true`. Companion inserts: `guest_id=NULL`, `source='companion'`, `seat_label`=companion snapshot name, `is_lead=false`.
+
+**Request (adhoc party):**
+```json
+{ "adhocName": "DJ + assistant", "adhocCompanions": ["Roadie"], "seatIndexes": [0, 1] }
+```
+`party_key = nanoid(10)` generated server-side, `source='adhoc'`, `guest_id=NULL`. Adhoc persons live in the seating plan only (NOT in `guests`).
+
+The optional `seatIndexes: number[]` carries explicit 0-based chair positions (one per person; each integer `0..capacity-1`; distinct; currently free). Used by the 2-step chair picker in the Mesas tab so the couple can place each person on a specific chair. If `seatIndexes` is omitted, the server auto-assigns the **lowest-free indexes** (was `max+1` — see COMPENDIUM §10 #23 for the gap-bug fix).
+
+**Response (201):** `{ "ok": true, "seats": [...] }` (the rows inserted)
+**Response (409):** `{ "ok": false, "error": "Sin espacio..." }` / `"seatIndex N ya está ocupado."`
+
+#### PATCH /api/admin/seating/seats/[seatId]
+
+Rename the chair occupant (`seatLabel`) and/or **move** the chair to another position (`tableId` + `seatIndex`). Any subset may be present.
+
+**Request (rename):** `{ "seatLabel": "New name" }`
+**Request (move — same table = reorder; different table = reassign):** `{ "tableId": "uuid", "seatIndex": 4 }`
+**Request (both, combined):** `{ "seatLabel": "New name", "tableId": "uuid", "seatIndex": 4 }`
+
+Cross-table moves check `occupied(target)+1 ≤ capacity` (409) and no collision at `(targetTable, targetIndex)` (409). `guest_id` is never touched (the lead keeps its identity; `idx_seating_seats_guest_unique` still holds). This power the **move-mode** in the Mesas diagram: tap "Mover" on an occupied chair → a sticky banner appears → tap any empty chair on any table to reassign.
+
+#### DELETE /api/admin/seating/seats/[seatId]
+
+Remove one chair. `seat_index` reallocates on next insert (lowest-free).
+
+#### DELETE /api/admin/seating/party/[partyKey]
+
+Remove a whole party (RSVP lead + companions, or an adhoc group) in a single call. `DELETE FROM seating_seats WHERE party_key = …`.
+
+After any seating mutation the client calls `seatingFetch.retry()` to re-fetch the full plan, keeping the server as the single source of truth.
 
 ---
 

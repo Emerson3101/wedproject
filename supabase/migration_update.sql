@@ -362,3 +362,85 @@ BEGIN
   RETURN v_exists;
 END;
 $$;
+
+-- ============================================
+-- 10. MESAS — Plano de sentado del admin (NUEVO)
+-- --------------------------------------------
+-- Dos tablas para que el admin arme el plano de mesas:
+--   seating_tables  — mesa (nombre/capacidad/forma/orden)
+--   seating_seats   — asiento ocupado por un invitado o grupo
+--
+-- COMPENDIUM §10 #22 (nuevo): los nombres de los acompañantes
+-- son SNAPSHOT capturados al sentar; `submit_rsvp` borra y
+-- re-inserta companions (§9), por eso NO hay FK de seat →
+-- companions(id). Solo `guest_id` (el lead) se enlaza, con
+-- ON DELETE SET NULL, y snapshot de compañeros queda suelto
+-- (etiquetado en `seat_label`). El UI marca drift comparando
+-- el conteo snapshot vs el conteo vivo de companions.
+--
+-- Idempotente: DO $$ IF NOT EXISTS, ADD COLUMN IF NOT EXISTS,
+-- CREATE INDEX IF NOT EXISTS, DROP POLICY IF EXISTS + CREATE.
+-- ============================================
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_name = 'seating_tables'
+  ) THEN
+    CREATE TABLE seating_tables (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      name VARCHAR(100) NOT NULL,
+      capacity INTEGER NOT NULL DEFAULT 8 CHECK (capacity BETWEEN 1 AND 50),
+      display_order INTEGER NOT NULL DEFAULT 0,
+      shape VARCHAR(16) NOT NULL DEFAULT 'round',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  END IF;
+END $$;
+
+-- Asegurar la columna `shape` aunque la tabla se haya creado
+-- antes sin ella (futuras evoluciones de schema).
+ALTER TABLE seating_tables ADD COLUMN IF NOT EXISTS shape VARCHAR(16) NOT NULL DEFAULT 'round';
+
+CREATE INDEX IF NOT EXISTS idx_seating_tables_display_order ON seating_tables(display_order);
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_name = 'seating_seats'
+  ) THEN
+    CREATE TABLE seating_seats (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      table_id UUID NOT NULL REFERENCES seating_tables(id) ON DELETE CASCADE,
+      guest_id UUID REFERENCES guests(id) ON DELETE SET NULL,
+      party_key VARCHAR(64) NOT NULL,
+      seat_label VARCHAR(255) NOT NULL,
+      is_lead BOOLEAN NOT NULL DEFAULT false,
+      seat_index INTEGER NOT NULL DEFAULT 0,
+      source VARCHAR(16) NOT NULL DEFAULT 'adhoc',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_seating_seats_table_id  ON seating_seats(table_id);
+CREATE INDEX IF NOT EXISTS idx_seating_seats_party_key ON seating_seats(party_key);
+CREATE INDEX IF NOT EXISTS idx_seating_seats_guest_id  ON seating_seats(guest_id);
+
+-- Un lead (guest_id not null) puede ocupar a lo más una silla
+-- en todo el plano. Acompañantes snapshot y adhoc tienen
+-- guest_id NULL -> no entran en el índice parcial.
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_indexes WHERE indexname = 'idx_seating_seats_guest_unique'
+  ) THEN
+    CREATE UNIQUE INDEX idx_seating_seats_guest_unique
+      ON seating_seats(guest_id) WHERE guest_id IS NOT NULL;
+  END IF;
+END $$;
+
+ALTER TABLE seating_tables ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seating_seats  ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Service role can manage seating_tables" ON seating_tables;
+DROP POLICY IF EXISTS "Service role can manage seating_seats"  ON seating_seats;
+CREATE POLICY "Service role can manage seating_tables" ON seating_tables FOR ALL USING (TRUE);
+CREATE POLICY "Service role can manage seating_seats"  ON seating_seats  FOR ALL USING (TRUE);

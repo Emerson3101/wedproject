@@ -110,12 +110,15 @@ wedproject/
         ├── favicon.ico             # App-dir file convention: auto-serves /favicon.ico + <link rel="icon">
         │
         ├── admin/
-        │   ├── page.tsx            # Auth gate + sticky header (logout/refresh/Ver Sitio) + icon tabs (sliding pill) + 3× useAdminFetch + mutation handlers (WS12)
-        │   └── _components/        # Admin UI extracted from the former God component (WS6) + WS12 overhaul
+        │   ├── page.tsx            # Auth gate + sticky header (logout/refresh/Ver Sitio) + icon tabs (sliding pill) + 4× useAdminFetch (incl. seatingFetch for the Mesas tab, WS-Mesas) + mutation handlers (WS12)
+        │   └── _components/        # Admin UI extracted from the former God component (WS6) + WS12 overhaul + WS-Mesas seating tab
         │       ├── AdminDashboard.tsx     # Total Confirmados hero card + composition bar + StatCard grid
         │       ├── AdminGuestsTable.tsx   # Responsive (desktop table/mobile cards) + search + filter + sort + pagination; StatusChip + CompanionPanel
         │       ├── AdminSongsTable.tsx    # Same responsive UX; lucide actions; AnimatePresence delete modal
         │       ├── AdminMessages.tsx      # Search + pagination + Reveal stagger
+        │       ├── AdminSeating.tsx       # (WS-Mesas) Seating orchestrator: StatCards + pool panel + grid of diagrams + create/edit TableFormModal + delete modal
+        │       ├── SeatingTableDiagram.tsx # (WS-Mesas) Per-table top-down visual (round: trig-positioned chairs / rect: two rows) + chair popovers (rename/remove) + drift chip
+        │       ├── SeatingPool.tsx       # (WS-Mesas) Unseated confirmed-guest list + adhoc person form + assign modal (table picker filtered by capacity)
         │       ├── StatCard.tsx           # StatCard (default + highlight hero) with optional lucide icon
         │       ├── StatusChip.tsx         # Unified StatusChip + SongStatusChip (replaces duplicated status maps)
         │       ├── AdminToolbar.tsx       # Search + status filter chips + result count (reusable)
@@ -123,7 +126,7 @@ wedproject/
         │       ├── Pagination.tsx         # Page-size selector + numbered pager + range summary (zero deps)
         │       ├── States.tsx             # EmptyState + TableSkeleton + ErrorState (shared table states)
         │       ├── AdminToast.tsx         # Toast provider + useToast (framer AnimatePresence, zero deps)
-        │       └── types.ts               # Shared admin types (GuestWithCompanions, Stats, GuestMessage, responses)
+        │       └── types.ts               # Shared admin types: GuestWithCompanions, Stats, GuestMessage, responses; (WS-Mesas) SeatOccupant, ConfirmedParty, SeatingTableWithSeats, SeatingStats, SeatingResponse, AddSeatPayload, DEFAULT_SEATING
         │
         ├── login/
         │   └── page.tsx            # Guest login (password → /api/auth/login → redirect /)
@@ -153,7 +156,16 @@ wedproject/
                 │           ├── route.ts                # POST — add companion (admin; resyncs num_companions)
                 │           └── [companionId]/route.ts  # DELETE — remove companion (admin; resyncs num_companions)
                 ├── songs/route.ts      # PATCH {songId,isApproved} → approve/reject (admin)
-                └── messages/route.ts    # GET → guest messages from guests.message column
+                ├── messages/route.ts    # GET → guest messages from guests.message column
+                └── seating/             # (WS-Mesas) Plano de sentado — 7 handlers, all in-route requireAdmin({wrapOk:true})
+                    ├── route.ts             # GET → {tables[].seats[], pool[], stats} (full hydrated plan)
+                    ├── tables/
+                    │   ├── route.ts        # POST {name,capacity,shape} → create table
+                    │   └── [tableId]/
+                    │       ├── route.ts    # PATCH (edit) + DELETE (cascade)
+                    │       └── seats/route.ts # POST dispatch {kind:'rsvp'|'adhoc',…} → seat a party; 409 on overflow
+                    ├── seats/[seatId]/route.ts # PATCH (rename seat_label) + DELETE (one chair)
+                    └── party/[partyKey]/route.ts # DELETE — remove a whole party (RSVP lead+companions, or adhoc group)
 ```
 
 \* `layout.tsx` previously referenced `/apple-icon.png` in `metadata.icons`, but that file never existed (404 on iOS apple-touch-icon) — the `icons` block was removed in WS10. `/favicon.ico` is served (and its `<link rel="icon">` emitted) automatically by the `src/app/favicon.ico` file convention, so no `metadata.icons` block is needed. See COMPENDIUM §10 #11.
@@ -176,7 +188,7 @@ RLS is intentionally permissive (`USING(TRUE)`/`WITH CHECK(TRUE)` on most public
 | File | Idempotent? | Defines |
 | ---- | ----------- | ------- |
 | `schema.sql` | **Yes** (post-WS8) — renames wrapped in `DO $$ … IF EXISTS` blocks | `guests`, `companions`, `songs` (YouTube cols), `updated_at` trigger, `submit_rsvp`, `vote_song` (deprecated), base RLS |
-| `migration_update.sql` | **Yes** — wraps renames in `DO $$ … IF EXISTS` blocks | `admin_settings` (real-valued seed), `song_likes` (one per browser), `like_song`/`unlike_song`/`has_liked_song`, indices, refreshed RLS |
+| `migration_update.sql` | **Yes** — wraps renames in `DO $$ … IF EXISTS` blocks; §10 NUEVO — Mesas uses `ADD COLUMN IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` + `DROP POLICY IF EXISTS`/recreate | `admin_settings` (real-valued seed), `song_likes` (one per browser), `like_song`/`unlike_song`/`has_liked_song`, indices, refreshed RLS, **`seating_tables` + `seating_seats`** (WS-Mesas seating plan; partial unique index `idx_seating_seats_guest_unique` ensures an RSVP lead sits in at most one chair across all tables), permissive RLS |
 | `migration_clean_admin_settings.sql` | **Yes** (WS8) — `DELETE` drift + `INSERT … ON CONFLICT DO UPDATE` truth | Bridge for already-drifted DBs: scrubs `2025`/Emerson/Plancarte rows and re-seeds `2026-09-12T18:00:00`/Alma & Chava/`2026-08-15`/`{"limit": 2}`/`almaychava` |
 
 **Fresh-DB run order:** `schema.sql` → `migration_update.sql` (or, for an already-migrated DB, just `migration_update.sql`). For a DB that already holds drifted `admin_settings` rows, also run `migration_clean_admin_settings.sql` once. See `docs/COMPENDIUM.md §4` for full column/proc detail.
@@ -245,20 +257,29 @@ Env-driven wrappers + boolean feature flags: `isSupabaseConfigured`, `isSupabase
 | DELETE | `/api/admin/guests/[guestId]/companions/[companionId]` | **Admin** | Remove companion; resyncs `num_companions` |
 | PATCH  | `/api/admin/songs`           | **Admin**    | `{songId,isApproved}` → approve/reject             |
 | GET    | `/api/admin/messages`        | **Admin**    | Messages from `guests.message` column              |
+| GET    | `/api/admin/seating`         | **Admin**    | Full seating plan: `tables[].seats[]` + unseated `pool[]` + `stats` (in-route `admin_auth` re-check via `requireAdmin({wrapOk:true})`) |
+| POST   | `/api/admin/seating/tables`  | **Admin**    | Create table `{name,capacity,shape}`; `shape ∈ {round,rect}` default `round`; `display_order = max+1` |
+| PATCH  | `/api/admin/seating/tables/[tableId]` | **Admin** | Edit table `{name?,capacity?,shape?}` (dirty fields only) |
+| DELETE | `/api/admin/seating/tables/[tableId]` | **Admin** | Delete table (cascades to `seating_seats` via FK `ON DELETE CASCADE`) |
+| POST   | `/api/admin/seating/tables/[tableId]/seats` | **Admin** | Dispatch route: `{guestId,includeCompanions}` seats an RSVP lead + companion snapshots; `{adhocName,adhocCompanions[]}` seats an external party. Optional `seatIndexes?: number[]` places the party on specific chairs (used by the 2-step chair picker); auto = lowest-free index. 409 on overflow/collision |
+| PATCH  | `/api/admin/seating/seats/[seatId]` | **Admin** | Rewrite: `{seatLabel?}` (rename) and/or `{tableId,seatIndex}` (move chair — same table = reorder; other table = reassign). guest_id untouched → `idx_seating_seats_guest_unique` holds. 409 on capacity/collision |
+| DELETE | `/api/admin/seating/seats/[seatId]` | **Admin** | Remove one chair; next insert reallocates via lowest-free index |
+| DELETE | `/api/admin/seating/party/[partyKey]` | **Admin** | Remove a whole party (RSVP lead + companions, or adhoc group) in one call |
 | GET    | `/api/test/guest`            | Dev only     | Test endpoint (404 in prod)                        |
 | GET    | `/api/test/cloudinary`       | Dev only     | Test endpoint (404 in prod)                        |
 
 \* `/api/admin/login` and `/api/admin/check` are whitelisted by the proxy so the login flow itself can function.
 
-> 📝 `POST /api/admin/login` returns `{ok:true}` (not `{success:true}`); `POST /api/auth/login` returns `{success:true}`. `GET /api/admin/guests` does its own in-route `admin_auth` cookie check; `/api/admin/messages` relies entirely on the proxy gate.
+> 📝 `POST /api/admin/login` returns `{ok:true}` (not `{success:true}`); `POST /api/auth/login` returns `{success:true}`. `GET /api/admin/guests` does its own in-route `admin_auth` cookie check; `/api/admin/messages` relies entirely on the proxy gate. Every `/api/admin/seating/*` route calls `requireAdmin({wrapOk:true})` in-route for defense-in-depth (§3).
 
 ## Admin Dashboard (`/admin`)
 
-Four tabs. Post-WS6, `src/app/admin/page.tsx` was the auth gate + tab switch + wiring (~238 lines); WS12 elevated it into a sticky-header shell (Refrescar / Cerrar sesión / Ver Sitio) with an animated icon-tab switch (Framer `layoutId`) and toast feedback. The UI lives in `src/app/admin/_components/` (`AdminDashboard`, `AdminGuestsTable`, `AdminSongsTable`, `AdminMessages`, plus WS12 `StatusChip`/`AdminToolbar`/`SortHeader`/`Pagination`/`States`/`AdminToast`); data fetching goes through `src/hooks/useAdminFetch.ts` and column sort through `src/hooks/useTableSort.ts`:
+Five tabs. Post-WS6, `src/app/admin/page.tsx` was the auth gate + tab switch + wiring (~238 lines); WS12 elevated it into a sticky-header shell (Refrescar / Cerrar sesión / Ver Sitio) with an animated icon-tab switch (Framer `layoutId`) and toast feedback. The UI lives in `src/app/admin/_components/` (`AdminDashboard`, `AdminGuestsTable`, `AdminSongsTable`, `AdminMessages`, plus WS12 `StatusChip`/`AdminToolbar`/`SortHeader`/`Pagination`/`States`/`AdminToast`, and WS-Mesas `AdminSeating`/`SeatingTableDiagram`/`SeatingPool`); data fetching goes through `src/hooks/useAdminFetch.ts` and column sort through `src/hooks/useTableSort.ts`:
 - **Dashboard** — hero **Total Confirmados** card (`stats.totalConfirmed`, WS12: confirmed guests + their companions) + zero-dep response-composition bar + total/confirmed/declined/pending/companions stats
 - **Invitados** — sortable + searchable + filterable + paginated + responsive table (stacked cards on mobile, sticky-header on desktop) with expandable companion rows
 - **Canciones** — same responsive table UX; song moderation (approve/reject via `/api/admin/songs`, delete via `/api/songs`); reads the **public** `/api/songs`
 - **Mensajes** — searchable + paginated guest messages (via `/api/admin/messages`)
+- **Mesas** (WS-Mesas — seating plan / plano de sentado) — the only tab backed by its own endpoint subtree (`/api/admin/seating/*`, 7 handlers) + its own client subtree (`AdminSeating.tsx` orchestrator, `SeatingTableDiagram.tsx` top-down visual — round: trig-positioned chairs around a circle; rect: two rows — `SeatingPool.tsx` unseated confirmed-guest list + adhoc person form + assign modal). Stats: total tables / seated / capacity / pool count. Tables: create / edit (`TableFormModal`: name + capacity + shape toggle) / delete (cascade). Chairs: assign an RSVP party (lead + 1 chair per companion snapshot) OR an adhoc party (name + optional companions) — 1 person = 1 chair, capacity server-enforced (409 on overflow); per-chair rename + remove; per-party remove. Companion names are a snapshot at seating time — never resynced (COMPENDIUM §10 #22 drift chip is the reconciliation path). Adhoc persons live in the seating plan only (NOT in `guests`). Partial unique index `idx_seating_seats_guest_unique` ensures an RSVP lead occupies at most one chair across all tables.
 
 Mutations (approve/delete/add-companion) refetch from the server (no optimistic client state); deletes confirm via an `AnimatePresence` modal; successes confirm via toast; errors surface inline (no `alert()`).
 

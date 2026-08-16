@@ -107,8 +107,9 @@ guests, songs, and guest messages.
                     ▼
         ┌────────────────────────────────────────────────────────┐
         │  Supabase / PostgreSQL                                 │
-        │   tables: guests, companions, songs, song_likes,      │
-        │            admin_settings                             │
+         │   tables: guests, companions, songs, song_likes,      │
+         │            admin_settings, seating_tables,            │
+         │            seating_seats                              │
         │   RPCs: submit_rsvp, vote_song, like_song,            │
         │         unlike_song, has_liked_song, update_updated_at│
         └───────────┬────────────────────────────────────────────┘
@@ -276,8 +277,13 @@ guest (site_auth)   can:  read homepage sections
 
 admin (admin_auth)  can:  everything a guest can, PLUS
                           GET /api/admin/guests, /api/admin/songs (PATCH), /api/admin/messages
+                          GET /api/admin/seating (full seating plan)
+                          POST /api/admin/seating/tables, PATCH/DELETE /api/admin/seating/tables/[id]
+                          POST /api/admin/seating/tables/[id]/seats (assign party or adhoc)
+                          PATCH/DELETE /api/admin/seating/seats/[id]
+                          DELETE /api/admin/seating/party/[partyKey]
                           DELETE /api/songs
-                          full /admin dashboard
+                          full /admin dashboard (5 tabs incl. Mesas)
 ```
 
 Note: `/admin` the **page** is reachable with `site_auth` alone (proxy step 5 only requires
@@ -386,6 +392,40 @@ scrub a DB that still holds the pre-WS8 drift (`Emerson`/`Plancarte`/`2025`), ru
 `2026-09-12T18:00:00` — `wedding.ts:8-16`). `admin_settings` is provisioned for a future
 editable-config feature but is currently unused by client code; flag any change that starts
 reading it.
+
+#### `seating_tables` / `seating_seats` — admin seating plan (`migration_update.sql` §10)
+
+Two new tables backing the **Mesas** tab in the admin dashboard (plano de sentado).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| **`seating_tables`** | | |
+| `id` | UUID PK | `DEFAULT gen_random_uuid()` |
+| `name` | VARCHAR(100) | required; admin-set name |
+| `capacity` | INTEGER | `DEFAULT 8`; `CHECK (capacity BETWEEN 1 AND 50)`; enforced server-side too (409 on overflow) |
+| `display_order` | INTEGER | `DEFAULT 0`; monotonic ordering on the grid |
+| `shape` | VARCHAR(16) | `'round' \| 'rect'`; default `'round'`; UI toolbar toggle calls `PATCH` |
+| `created_at` | TIMESTAMPTZ | default `NOW()` |
+
+| **`seating_seats`** | | |
+| `id` | UUID PK | `DEFAULT gen_random_uuid()` |
+| `table_id` | UUID FK→`seating_tables.id` | `ON DELETE CASCADE` (drop the table, drop the chairs) |
+| `guest_id` | UUID FK→`guests.id` | nullable; `ON DELETE SET NULL`. **Only the lead** carries a `guest_id`; companion snapshots + adhoc rows leave this `NULL` |
+| `party_key` | VARCHAR(64) | groups a lead + their companions. For RSVP party: `party_key = guest_id`; for adhoc: `party_key = nanoid(10)` generated server-side |
+| `seat_label` | VARCHAR(255) | **Snapshot** name of the occupant. Captured at insert + never resynced (§10 #22) |
+| `is_lead` | BOOLEAN | true = party head (RSVP lead or adhoc lead |
+| `seat_index` | INTEGER | chair position around the table (0-based). Next insert = lowest-free index (was `max+1` — see §10 #23) |
+| `source` | VARCHAR(16) | `'rsvp'` (RSVP lead) \| `'companion'` (RSVP companion snapshot) \| `'adhoc'` (manual external guest) |
+| `created_at` | TIMESTAMPTZ | default `NOW()` |
+
+Indexes (`migration_update.sql` §10): `idx_seating_tables_display_order`,
+`idx_seating_seats_table_id`, `idx_seating_seats_party_key`,
+`idx_seating_seats_guest_id`, plus a **partial unique** index
+`idx_seating_seats_guest_unique ON seating_seats(guest_id) WHERE guest_id IS NOT NULL` —
+an RSVP lead can occupy at most one chair across all tables. Adhoc + companion snapshots
+have `guest_id = NULL` so the partial index is skipped for them. TS interfaces:
+`SeatingTable`, `SeatingSeat` (`supabase.ts`, appended after `Song`). RLS permissive
+(`Service role can manage …`); the proxy is the real wall, as everywhere.
 
 ### Procedures (RPC functions)
 
@@ -525,7 +565,7 @@ the client), and surface success via the `AdminToast` provider. `window.confirm`
 a ~894-line God component with 3 duplicated `useEffect` fetch blocks and
 `window.alert`/`confirm`/`location.reload()`.
 
-The dashboard has 4 tabs (Dashboard / Invitados / Canciones / Mensajes):
+The dashboard has 5 tabs (Dashboard / Invitados / Canciones / Mensajes / Mesas):
 
 - **Invitados** — `GET /api/admin/guests` (`admin/guests/route.ts`): admin check, fetches all
   `guests` (newest-first) + all `companions`, groups companions by guest, and computes `stats
@@ -569,6 +609,65 @@ The dashboard has 4 tabs (Dashboard / Invitados / Canciones / Mensajes):
   `.not("message","is",null).neq("message","")`, ordered `created_at desc`. Returns
   `{ok:true, messages:[{id, guestName, guestEmail, message, status, createdAt}]}`. There is
   no separate `messages` table — messages live on `guests.message`.
+- **Mesas** (seating plan) — the **only** tab backed by its own endpoint subtree
+  (`/api/admin/seating/*`, 7 handlers) + its own client subtree
+  (`src/app/admin/_components/AdminSeating.tsx` + `SeatingTableDiagram.tsx` +
+  `SeatingPool.tsx`). All routes call `requireAdmin({ wrapOk: true })` for defense-in-depth
+  on top of the proxy.
+  - `GET /api/admin/seating` (`seating/route.ts`) — fetches all `seating_tables` ordered by
+    `display_order`, all `seating_seats`, and all confirmed guests + their companion
+    snapshots from `companions`. Server-side joins build `tables[].seats[]` (with a
+    `SeatOccupant` projection: `source`, `seat_label`, `is_lead`, `seat_index`), a `pool[]`
+    of confirmed-but-unseated parties (`ConfirmedParty`: `guest_id` lead + `companions[]`
+    with `name` + `table_id` drift flag via `seatsByGuestId`), plus an adhoc pool extraction.
+    Returns `{ ok:true, tables, pool, stats }` (`stats`: `totalTables`, `totalSeats`,
+    `seated`, `capacity`, `poolCount`).
+  - `POST /api/admin/seating/tables` — body `{ name, capacity, shape }`; `shape ∈
+    {'round','rect'}` default `'round'`; `display_order = max+1` then row returned. Capacity
+    server-validated `1–50` (DB CHECK is the safety net).
+  - `PATCH /api/admin/seating/tables/[tableId]` — body partial `{name?,capacity?,shape?}`;
+    capacity re-clamped, only dirtied fields go to Supabase.
+  - `DELETE /api/admin/seating/tables/[tableId]` — `DELETE FROM seating_tables WHERE id=…`
+    cascades to `seating_seats` (FK `ON DELETE CASCADE`).
+  - `POST /api/admin/seating/tables/[tableId]/seats` — the **dispatch route**. Body has
+    `{ kind: 'rsvp'|'adhoc', … }`. For `rsvp`: requires `guestId`, optionally
+    `includeCompanions` (default true) → fetches the confirmed guest + the `companions`
+    snapshot, allocates 1 chair per person (lead + each companion). For `adhoc`: requires
+    `name`, optional `companions[]` (adhoc party). Optional `seatIndexes?: number[]` —
+    explicit 0-based chair positions (length must equal #people); used by the 2-step chair
+    picker in `SeatingPool`. If omitted, auto-assigns the **lowest-free indexes** (§10 #23 —
+    fixes the old `max+1` gap bug). Overflow check: `occupied + added > capacity` → 409.
+    RSVP lead insert carries `guest_id`, `source='rsvp'`, `party_key=guestId`,
+    `is_lead=true`. Companion inserts carry `guest_id=NULL`, `source='companion'`,
+    `seat_label` = companion snapshot name, `is_lead=false`. Adhoc inserts get a server-side
+    `party_key = nanoid(10)`, `source='adhoc'`, `guest_id=NULL`.
+  - `PATCH /api/admin/seating/seats/[seatId]` — generalized: body may include any subset of
+    `{ seatLabel?, tableId?, seatIndex? }`. `seatLabel` renames; `{ tableId, seatIndex }`
+    **moves** the chair (same table = reorder; different table = reassign). Cross-table
+    checks `occupied(target)+1 ≤ capacity` (409) and no collision at `(targetTable, targetIndex)` (409).
+    `guest_id` is never touched (lead keeps its identity; `idx_seating_seats_guest_unique` holds).
+    This powers **move-mode** in the diagram — tap "Mover" on an occupied chair, then tap any
+    empty chair on any table to reassign.
+  - `DELETE /api/admin/seating/seats/[seatId]` — one chair; vacancy reallocates later via
+    lowest-free index on next insert. If the deleted row was the lead → still OK, companions keep their
+    `party_key`. To remove a whole party at once, use the `party/[partyKey]` route.
+  - `DELETE /api/admin/seating/party/[partyKey]` — `DELETE FROM seating_seats WHERE
+    party_key=…`; frees all chairs occupied by that party (RSVP lead + companions, or an adhoc
+    group). Then `retry()` the `seatingFetch` so the pool+tables stay consistent.
+  - **UI components** (`admin/_components/`):
+    - `AdminSeating.tsx` — orchestrator: StatCards (tables/seated/capacity/pool), pool panel,
+      grid of diagrams, create/edit modal (`TableFormModal`), delete confirm modal, sticky
+      move-mode banner. Owns the mutation handlers + move-mode state via props from `admin/page.tsx`.
+    - `SeatingTableDiagram.tsx` — top-down visual (round: trig-positioned chairs around a
+      circle; rect: two rows), chair popovers with rename/remove/**move** actions, party chips
+      with drift warnings (§10 #22). **Recap block** below the visual lists every person by
+      chair number ("Silla N: Nombre"). In move-mode, empty chairs across all tables become
+      tappable targets (~40px, dashed-border highlight); the origin chair pulses with a `MoveRight` icon.
+    - `SeatingPool.tsx` — list of unseated confirmed guests + adhoc person form + **2-step assign
+      modal**: step 1 = table picker (capacity-filtered list); step 2 = mini chair ring/row of
+      the chosen table — tap empty chairs to assign each person (lead→companions in order),
+      pre-filled with lowest-free auto for a fast path. Confirm sends `seatIndexes` to the POST
+      dispatch route.
 
 ⚠️ **Message overwrite on RSVP re-submit:** because `submit_rsvp` upserts by email and the
 `guests.message` column is overwritten on every submit, a guest who re-answers RSVP will
@@ -1136,6 +1235,45 @@ Non-obvious traps, collected. Each is verifiable; severity flagged.
     Tailwind classes) so it works even when the CSS layer is unavailable. *(Severity: dev-only;
     production unaffected.)*
 
+22. **Seating snapshot — companion names captured at seating time; never resynced.** The
+    `seating_seats` table stores a `seat_label` snapshot for every chair (lead, companion,
+    or adhoc). For an RSVP party the seat insert path (`seats/route.ts`) reads the live
+    `companions` rows and copies their `name` into `seat_label`. **It does NOT keep an FK
+    to `companions.id`.** Rationale: `submit_rsvp` (`migration_update.sql:202-243`)
+    deletes+re-inserts all `companions` for a guest on every re-submit (§10 #14), so a
+    stored `companions.id` would be orphaned on the next RSVP. Storing the snapshot name
+    instead means a guest who re-RSVPs (and renames a companion, or adds/drops one) will
+    still show their **old** companion names in the seating diagram — the `seat_label`s
+    are sticky. `SeatingTableDiagram.tsx` surfaces this drift with a "Drift: re-RSVP
+    mismatch" chip so the couple knows to manually remove + re-add the party from the pool
+    (the new companions reload into the unseated pool on the next `seatingFetch`). The
+    `guest_id` link on the lead DOES survive re-RSVP (it's `ON DELETE SET NULL`, but
+    `submit_rsvp` is an upsert — the `guests.id` row is kept). Adhoc rows have no DB link at
+    all (guest_id NULL, party_key is a server-generated nanoid), so they're immune to RSVP
+    drift but the couple must rename them manually if they want to fix a typo. **Implication
+    for future work:** do not add an FK `seating_seats.companion_id → companions.id` — use
+    the snapshot; do not auto-resync `seat_label`s from live companions; the pool+drift UI
+    is the reconciliation path.
+
+23. **Auto-allocation switched to lowest-free index (was `max+1`); no unique on `(table_id, seat_index)`.**
+    The original seat allocator (`seats/route.ts`) computed the next `seat_index` as
+    `max(existing)+1`. That had a latent bug: if you removed a middle chair (e.g. seat 4 of a
+    capacity-8 table), `max` stayed 7, so the next insert went to index 8 — **past capacity**,
+    and the ring/row visual (`SeatingTableDiagram`, which only draws `0..capacity-1`) silently
+    dropped the new chair. The fix (WS-Mesas seat-control): the auto path now fills the
+    **lowest free indexes** in `0..capacity-1`. Explicit placement via `seatIndexes[]` in the
+    POST body (used by the 2-step chair picker in `SeatingPool`) and the PATCH move route
+    both use the same per-(table,index) occupation check server-side. **There is NO unique
+    constraint on `(table_id, seat_index)`** — the schema (§4) deliberately relies on server-side
+    validation to prevent collisions (409 on `occupiedSeatorCollision`). Keep that in mind
+    if you ever try to insert seats outside the route (e.g. a SQL seed): it's your job to avoid
+    `(table_id, seat_index)` dupes. The partial unique `idx_seating_seats_guest_unique` (only
+    on `guest_id`) still holds and stops an RSVP lead from sitting twice across all tables, but
+    it does NOT cover seat positions. **Implication for future work:** don't add a DB
+    `(table_id, seat_index)` UNIQUE constraint naïvely — the server-side validation gives richer
+    Spanish error messages (409 "Esa silla ya está ocupada.") than a raw Postgres violation
+    would surface, and the move route can swap positions atomically without fighting an index.
+
 ## 11. Change-Planning Playbook
 
 Templated, low-risk recipes for the common modifications. Each recipe lists the exact files
@@ -1281,19 +1419,40 @@ Common rules that apply to **every** recipe:
 
 ### (g) Add an admin-dashboard tab
 
-1. Add the tab to `src/app/admin/page.tsx` (the 4-tab dashboard is there: Dashboard /
-   Invitados / Canciones / Mensajes). Render the new tab's UI + fetch its data.
-2. Backend: add the supporting `/api/admin/<thing>` route (recipe b — it's auto-gated admin by
+1. Add the tab to `src/app/admin/page.tsx` (the dashboard now has 5 tabs: Dashboard /
+   Invitados / Canciones / Mensajes / Mesas). Render the new tab's UI + fetch its data via a
+   `useAdminFetch<T>` hook (one per endpoint); mutations call the server then `retry()` so
+   the server stays the source of truth (see `seatingFetch` + the seven `handle*` seating
+   handlers added WS-Mesas for the worked pattern).
+2. Backend: add the supporting `/api/admin/<thing>` route(s) (recipe b — auto-gated admin by
    the `/api/admin/*` rule). **Do not** forget the in-route `admin_auth` re-check
-   (`admin/guests/route.ts:23-30` pattern) for defense-in-depth; `/api/admin/messages` is the
-   exception that *only* trusts proxy — don't copy that pattern for new routes (§3).
-3. Data-flow impact: if the tab needs new DB structure, add a migration (recipe c). If it shows
-   existing `guests`/`songs` data, reuse the existing select — note `/admin` reads public
-   `/api/songs` for the song list (§5.3).
+   (`admin/guests/route.ts:23-30` pattern, `requireAdmin({ wrapOk: true })`) for
+   defense-in-depth; `/api/admin/messages` is the exception that *only* trusts proxy —
+   don't copy that pattern for new routes (§3).
+3. Data-flow impact: if the tab needs new DB structure, add a migration (recipe c). If it
+   shows existing `guests`/`songs` data, reuse the existing select — note `/admin` reads
+   public `/api/songs` for the song list (§5.3). If the tab warrants its own endpoint
+   subtree (like Mesas → `/api/admin/seating/*` with 7 handlers + joining across multiple
+   tables + a projected response shape), prefer grouping it under one area prefix and
+   exposing a single GET that returns the whole hydrated view (`tables + pool + stats`).
 4. Update `docs/COMPENDIUM.md` §5.3 (admin moderation) and `PROJECT_STRUCTURE.md` Admin
-   Dashboard section to list the new tab.
-5. Verify: guest cookie hits the new endpoint → 401; admin cookie → data; the tab renders in
-   the dashboard and the proxy still gates it.
+   Dashboard section to list the new tab. Update the `TAB_LABELS` / `TAB_ICONS` map +
+   extend the `Tab` union type at the top of `page.tsx`.
+5. Verify: guest cookie hits the new endpoint → 401; admin cookie → data; the tab renders
+   in the dashboard and the proxy still gates it.
+
+**Worked example — the Mesas spike (WS-Mesas):** added the 5th tab end-to-end. Migration
+appended to `migration_update.sql` (idempotent: `DO $$ IF NOT EXISTS`, `ADD COLUMN IF NOT
+EXISTS`, partial unique index `idx_seating_seats_guest_unique WHERE guest_id IS NOT NULL`,
+"drop policy + recreate" for RLS). New TS interfaces `SeatingTable` + `SeatingSeat` in
+`src/lib/supabase.ts`; projected response types (`SeatOccupant`, `ConfirmedParty`,
+`SeatingTableWithSeats`, `SeatingStats`, `SeatingResponse`, `DEFAULT_SEATING`) co-located
+in `admin/_components/types.ts`. 7 handlers under `/api/admin/seating/*`. UI split across
+`AdminSeating.tsx` (orchestrator), `SeatingTableDiagram.tsx` (top-down visual), and
+`SeatingPool.tsx` (unseated pool + assign modal). Gotcha #22 (snapshot reconciliation) added
+to §10. **Don't** repeat this spike's mistake: the first cut left two unused empty
+interface stubs (`interface SeatRow extends SeatingSeat {}`) in `route.ts` — eslint flags
+empty extends as if the imported base were unused. Just reuse the base interface directly.
 
 ### (h) Add a new external integration
 

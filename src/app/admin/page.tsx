@@ -13,6 +13,7 @@ import {
   RefreshCw,
   ExternalLink,
   Loader2,
+  Armchair,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAdminFetch } from "@/hooks/useAdminFetch";
@@ -23,11 +24,14 @@ import {
   type GuestsResponse,
   type SongsResponse,
   type MessagesResponse,
+  DEFAULT_SEATING,
+  type SeatingResponse,
 } from "./_components/types";
 import { AdminDashboard } from "./_components/AdminDashboard";
 import { AdminGuestsTable } from "./_components/AdminGuestsTable";
 import { AdminSongsTable } from "./_components/AdminSongsTable";
 import { AdminMessages } from "./_components/AdminMessages";
+import { AdminSeating, type AddSeatPayload } from "./_components/AdminSeating";
 import { AdminToastProvider } from "./_components/AdminToast";
 
 /* ============================================
@@ -44,13 +48,14 @@ import { AdminToastProvider } from "./_components/AdminToast";
    AdminToastProvider para feedback de acciones.
    ============================================ */
 
-type Tab = "dashboard" | "guests" | "songs" | "messages";
+type Tab = "dashboard" | "guests" | "songs" | "messages" | "mesas";
 
 const TAB_LABELS: Record<Tab, string> = {
   dashboard: "Dashboard",
   guests: "Invitados",
   songs: "Canciones",
   messages: "Mensajes",
+  mesas: "Mesas",
 };
 
 const TAB_ICONS: Record<Tab, typeof LayoutDashboard> = {
@@ -58,6 +63,7 @@ const TAB_ICONS: Record<Tab, typeof LayoutDashboard> = {
   guests: Users,
   songs: Music,
   messages: MessageSquare,
+  mesas: Armchair,
 };
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -143,12 +149,17 @@ export default function AdminPage() {
     url: "/api/admin/messages",
     enabled: isAuthenticated && activeTab === "messages",
   });
+  const seatingFetch = useAdminFetch<SeatingResponse>({
+    url: "/api/admin/seating",
+    enabled: isAuthenticated && activeTab === "mesas",
+  });
 
   // --- Refresco del tab activo ---
   const handleRefresh = () => {
     if (activeTab === "dashboard" || activeTab === "guests") guestsFetch.retry();
     else if (activeTab === "songs") songsFetch.retry();
     else if (activeTab === "messages") messagesFetch.retry();
+    else if (activeTab === "mesas") seatingFetch.retry();
   };
 
   // --- Mutaciones de canciones: al éxito se re-pide la lista ---
@@ -198,6 +209,122 @@ export default function AdminPage() {
       throw new Error(data.error || "Error al eliminar acompañante");
     }
     guestsFetch.retry();
+  };
+
+  // --- Mutaciones del plano de mesas (WS-Mesas) ---
+  // El servidor sigue siendo fuente única: cada handler llama al endpoint
+  // y al éxito re-pide el plano con `seatingFetch.retry()`.
+  const handleCreateTable = async (
+    name: string,
+    capacity: number,
+    shape: "round" | "rect",
+  ) => {
+    const res = await fetch("/api/admin/seating/tables", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, capacity, shape }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al crear la mesa");
+    }
+    seatingFetch.retry();
+  };
+
+  const handleUpdateTable = async (
+    tableId: string,
+    payload: {
+      name?: string;
+      capacity?: number;
+      shape?: "round" | "rect";
+      displayOrder?: number;
+    },
+  ) => {
+    const res = await fetch(`/api/admin/seating/tables/${tableId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al actualizar la mesa");
+    }
+    seatingFetch.retry();
+  };
+
+  const handleDeleteTable = async (tableId: string) => {
+    const res = await fetch(`/api/admin/seating/tables/${tableId}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al eliminar la mesa");
+    }
+    seatingFetch.retry();
+  };
+
+  const handleAddSeat = async (tableId: string, payload: AddSeatPayload) => {
+    const res = await fetch(`/api/admin/seating/tables/${tableId}/seats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al asignar el asiento");
+    }
+    seatingFetch.retry();
+  };
+
+  const handleRemoveSeat = async (seatId: string) => {
+    const res = await fetch(`/api/admin/seating/seats/${seatId}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al quitar el asiento");
+    }
+    seatingFetch.retry();
+  };
+
+  const handleRemoveParty = async (partyKey: string) => {
+    const res = await fetch(`/api/admin/seating/party/${partyKey}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al retirar el grupo");
+    }
+    seatingFetch.retry();
+  };
+
+  const handleRenameSeat = async (seatId: string, seatLabel: string) => {
+    const res = await fetch(`/api/admin/seating/seats/${seatId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seatLabel }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al renombrar el asiento");
+    }
+    seatingFetch.retry();
+  };
+
+  const handleMoveSeat = async (
+    seatId: string,
+    target: { tableId: string; seatIndex: number }
+  ) => {
+    const res = await fetch(`/api/admin/seating/seats/${seatId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(target),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al mover el asiento");
+    }
+    seatingFetch.retry();
   };
 
   // ====== Pantalla: comprobando sesión ======
@@ -434,6 +561,23 @@ export default function AdminPage() {
                   loading={messagesFetch.loading}
                   error={messagesFetch.error}
                   onRetry={messagesFetch.retry}
+                />
+              )}
+
+              {activeTab === "mesas" && (
+                <AdminSeating
+                  data={seatingFetch.data ?? DEFAULT_SEATING}
+                  loading={seatingFetch.loading}
+                  error={seatingFetch.error}
+                  onRetry={seatingFetch.retry}
+                  onCreateTable={handleCreateTable}
+                  onUpdateTable={handleUpdateTable}
+                  onDeleteTable={handleDeleteTable}
+                  onAddSeat={handleAddSeat}
+                  onRemoveSeat={handleRemoveSeat}
+                  onRemoveParty={handleRemoveParty}
+                  onRenameSeat={handleRenameSeat}
+                  onMoveSeat={handleMoveSeat}
                 />
               )}
             </motion.div>
