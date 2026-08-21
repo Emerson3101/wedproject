@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['192.168.1.9', '192.168.1.7', '192.168.1.2', '192.168.1.3'],
+  allowedDevOrigins: [],
   // Opt-out específicos del bundling de Server Components / Turbopack.
   // sharp usa binarios nativos (.node) que Turbopack no puede empaquetar
   // sin causar ERR_DLOPEN_FAILED (visto en dev mode Windows). Al
