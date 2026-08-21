@@ -1,6 +1,6 @@
 # Emerson Plancarte — Wedding Website
 
-A modern, elegant wedding invitation and management website built for Alma & Chava's September 2026 wedding. Features a complete RSVP system with companion management, collaborative playlist powered by YouTube, photo upload functionality, and an administrative dashboard.
+A wedding invitation and management website built for Alma & Chava's September 2026 wedding. Features a complete RSVP system with companion management, collaborative playlist powered by YouTube, photo upload functionality, and an administrative dashboard.
 
 ## Table of Contents
 
