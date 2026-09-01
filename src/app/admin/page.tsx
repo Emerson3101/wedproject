@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Loader2,
   Armchair,
+  FileSpreadsheet,
 } from "lucide-react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAdminFetch } from "@/hooks/useAdminFetch";
@@ -76,6 +77,7 @@ export default function AdminPage() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
   const prefersReduced = useReducedMotion();
 
@@ -327,6 +329,38 @@ export default function AdminPage() {
     seatingFetch.retry();
   };
 
+  // --- Exportación a Excel (invitados + mesas) ---
+  const handleExportExcel = async () => {
+    setExportingExcel(true);
+    try {
+      const res = await fetch("/api/admin/export");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Error al exportar datos a Excel");
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const disposition = res.headers.get("content-disposition");
+      let filename = "Boda_Alma_y_Chava_Invitados_y_Mesas.xlsx";
+      if (disposition && disposition.includes("filename=")) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) filename = match[1];
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Error al exportar a Excel:", err);
+      alert(err instanceof Error ? err.message : "Error al descargar el archivo Excel");
+    } finally {
+      setExportingExcel(false);
+    }
+  };
+
   // ====== Pantalla: comprobando sesión ======
   if (authLoading) {
     return (
@@ -437,6 +471,23 @@ export default function AdminPage() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 type="button"
+                onClick={handleExportExcel}
+                disabled={exportingExcel || loggingOut}
+                aria-label="Exportar datos a Excel"
+                title="Descargar archivo Excel con lista de invitados y mesas"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sage border border-sage/30 hover:bg-sage/10 transition-colors text-xs uppercase tracking-wider disabled:opacity-50"
+              >
+                {exportingExcel ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline">
+                  {exportingExcel ? "Exportando..." : "Exportar Excel"}
+                </span>
+              </button>
+              <button
+                type="button"
                 onClick={handleRefresh}
                 disabled={loggingOut}
                 aria-label="Refrescar datos"
@@ -531,7 +582,13 @@ export default function AdminPage() {
               role="tabpanel"
               aria-labelledby={`tab-${activeTab}`}
             >
-              {activeTab === "dashboard" && <AdminDashboard stats={stats} />}
+              {activeTab === "dashboard" && (
+                <AdminDashboard
+                  stats={stats}
+                  onExportExcel={handleExportExcel}
+                  exportingExcel={exportingExcel}
+                />
+              )}
 
               {activeTab === "guests" && (
                 <AdminGuestsTable

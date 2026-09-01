@@ -11,12 +11,14 @@
    ============================================ */
 
 import { motion, useReducedMotion } from "framer-motion";
-import { Users, CheckCircle2, XCircle, Clock, UserPlus, Crown } from "lucide-react";
+import { Users, CheckCircle2, XCircle, Clock, UserPlus, Crown, FileSpreadsheet, Loader2 } from "lucide-react";
 import { StatCard } from "./StatCard";
 import type { Stats } from "./types";
 
 interface AdminDashboardProps {
   stats: Stats;
+  onExportExcel?: () => void;
+  exportingExcel?: boolean;
 }
 
 const EASE = [0.16, 1, 0.3, 1] as const;
@@ -81,7 +83,11 @@ function ResponseComposition({ stats }: { stats: Stats }) {
   );
 }
 
-export function AdminDashboard({ stats }: AdminDashboardProps) {
+export function AdminDashboard({
+  stats,
+  onExportExcel,
+  exportingExcel,
+}: AdminDashboardProps) {
   const prefersReduced = useReducedMotion();
   const reveal = (delay: number) => ({
     initial: prefersReduced ? false : { opacity: 0, y: 16 },
@@ -127,9 +133,26 @@ export function AdminDashboard({ stats }: AdminDashboardProps) {
               </p>
             </div>
           </div>
-          <div className="mt-5 pt-4 border-t border-champagne/30 text-burgundy/60 text-xs">
-            <span className="text-sage font-medium">Catering / Seating:</span> esta cifra
-            refleja el número real de personas que asistirán.
+          <div className="mt-5 pt-4 border-t border-champagne/30 flex items-center justify-between gap-4 flex-wrap text-burgundy/60 text-xs">
+            <div>
+              <span className="text-sage font-medium">Catering / Seating:</span> esta cifra
+              refleja el número real de personas que asistirán.
+            </div>
+            {onExportExcel && (
+              <button
+                type="button"
+                onClick={onExportExcel}
+                disabled={exportingExcel}
+                className="btn-primary text-xs py-2 px-3.5 whitespace-nowrap shadow-sm disabled:opacity-50"
+              >
+                {exportingExcel ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-sage-light" aria-hidden />
+                )}
+                <span>{exportingExcel ? "Exportando..." : "Descargar Excel"}</span>
+              </button>
+            )}
           </div>
         </div>
       </motion.div>

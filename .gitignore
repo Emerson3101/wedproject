@@ -1,0 +1,89 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# local scratch / session logs
+/.playwright-mcp/
+
+# original RAW photos (cleaned copies live in public/images/couple/)
+/couple_photos/
+
+# personal launcher scripts (dev-machine specific)
+/start_claude.bat
+
+# === agentic coding files (keep local, never publish) ===
+# agent rule/context files
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+COPILOT.md
+CURSOR.md
+AUGMENT.md
+CODEX.md
+/opencode.json
+/opencode.jsonc
+/.opencode/
+# opencode workspace state (see https://opencode.ai)
+/.config/opencode/
+
+# task plans / scratch notes produced by agents
+PROJECT_STRUCTURE.md
+/docs/
+Tasks.md
+/Plan de implementación.md
+backup/
+
+# Claude Code local settings
+/.claude/
+
+# playwright MCP session scratch (already ignored above, kept here for clarity)
+/.playwright-mcp/
+
+# graphify knowledge-graph output
+/graphify-out/
+
+# misc agent logs / transcripts
+/.ai/
+/.codex/
+/.cursor/
+/.auggie/
+*.agentic.md
+

@@ -264,10 +264,10 @@ export function SeatingPool({
                       className={cn(
                         "inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[0.625rem] uppercase tracking-wider border",
                         p.guest.side === "bride"
-                          ? "text-rose border-rose/40"
+                          ? "text-rose border-rose/40 bg-rose/10"
                           : p.guest.side === "groom"
-                          ? "text-silver border-silver/40"
-                          : "text-burgundy/60 border-champagne/40"
+                          ? "text-silver-light border-silver/40 bg-silver/10"
+                          : "text-burgundy/80 border-silver/30 bg-silver/10"
                       )}
                     >
                       {p.guest.side === "bride" ? (
@@ -478,7 +478,7 @@ export function SeatingPool({
                   >
                     <div
                       className={cn(
-                        "absolute bg-burgundy/8 border border-burgundy/15 shadow-inner",
+                        "absolute bg-wine-mid/40 border border-silver/30 shadow-[inset_0_2px_12px_rgba(0,0,0,0.45)]",
                         chosenTable.shape === "round"
                           ? "inset-[26%] rounded-full"
                           : "left-0 right-0 top-[35%] h-[30%] rounded-2xl"
@@ -495,7 +495,7 @@ export function SeatingPool({
                           <div
                             key={mc.index}
                             style={{ left: `${mc.cx}%`, top: `${mc.cy}%` }}
-                            className="absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-champagne/30 bg-wine-deep/35 flex items-center justify-center text-[0.625rem] text-burgundy/40 font-display"
+                            className="absolute w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-silver/30 bg-wine-mid/60 flex items-center justify-center text-[0.625rem] text-burgundy/70 font-display font-medium shadow-sm"
                             aria-hidden
                           >
                             {mc.index + 1}
@@ -520,10 +520,10 @@ export function SeatingPool({
                               : `Silla ${mc.index + 1} libre`
                           }
                           className={cn(
-                            "absolute w-9 h-9 -translate-x-1/2 -translate-y-1/2 rounded-full border flex items-center justify-center text-[0.625rem] font-display transition-all",
+                            "absolute w-9 h-9 -translate-x-1/2 -translate-y-1/2 rounded-full border flex items-center justify-center text-[0.625rem] font-display transition-all shadow-sm",
                             isSelected
-                              ? "bg-silver/30 border-silver/70 text-burgundy font-semibold ring-2 ring-silver/50"
-                              : "border-dashed border-champagne/50 text-burgundy/40 hover:bg-silver/10 hover:border-silver/50"
+                              ? "bg-silver/30 border-2 border-silver text-burgundy font-bold ring-2 ring-silver/60"
+                              : "border-2 border-dashed border-silver/40 text-burgundy/70 bg-white/5 hover:bg-silver/20 hover:border-silver/80"
                           )}
                         >
                           {mc.index + 1}

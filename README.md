@@ -43,6 +43,7 @@ A wedding invitation and management website built for Alma & Chava's September 2
 - **Song Moderation** — Same responsive table UX; approve/reject song submissions, delete inappropriate content (animated confirmation modal), view vote counts
 - **Messages** — Searchable, paginated read-only view of the personal messages guests leave on RSVP
 - **Mesas (Seating Plan / Plano de Sentado)** — Top-down visual per table (round or rectangular, per-table shape toggle); assign an RSVP lead + their companions (1 person = 1 chair) or add an ad-hoc guest + optional companions; companion names snapshotted at seating time (never resynced, see §10 #22 of the compendium for the drift chip). Per-chair rename/remove + per-party remove. Capacity server-enforced (409 on overflow). Partial unique index keeps an RSVP lead to one chair across the whole plan
+- **Excel Export** — One-click generation of styled, concise Excel (.xlsx) workbooks via `/api/admin/export` covering the unified guest list (treating lead guests and companions equally without hierarchy), table-by-table seating distribution, and executive summary
 - **Session** — Cookie-based; header carries sign-out (`/api/admin/logout`) and per-section refresh
 
 ---
@@ -62,7 +63,7 @@ A wedding invitation and management website built for Alma & Chava's September 2
 | **Video** | YouTube Data API v3 |
 | **Maps** | Google Maps Embed API |
 | **Icons** | Lucide React |
-| **Utilities** | clsx, tailwind-merge, nanoid, html2canvas, qrcode.react |
+| **Utilities** | clsx, tailwind-merge, nanoid, html2canvas, qrcode.react, exceljs |
 
 ### Key Version Notes
 
