@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Armchair,
   LayoutGrid,
@@ -12,10 +12,19 @@ import {
   X,
   Loader2,
   ChevronDown,
+  ChevronUp,
+  GripVertical,
+  ArrowDownUp,
   Users,
   MoveRight,
 } from "lucide-react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+  Reorder,
+  useDragControls,
+} from "framer-motion";
 import { cn } from "@/lib/utils";
 import type {
   SeatingResponse,
@@ -67,6 +76,8 @@ interface AdminSeatingProps {
   onRemoveParty: (partyKey: string) => Promise<void>;
   onRenameSeat: (seatId: string, seatLabel: string) => Promise<void>;
   onMoveSeat: (seatId: string, target: { tableId: string; seatIndex: number }) => Promise<void>;
+  /** Persiste el orden global de las mesas (lista completa de ids). */
+  onReorderTables: (orderedIds: string[]) => Promise<void>;
 }
 
 interface TableFormState {
@@ -90,11 +101,13 @@ export function AdminSeating({
   onRemoveParty,
   onRenameSeat,
   onMoveSeat,
+  onReorderTables,
 }: AdminSeatingProps) {
   const { toast } = useToast();
   const prefersReduced = useReducedMotion();
   const [poolOpen, setPoolOpen] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showReorder, setShowReorder] = useState(false);
   const [formTarget, setFormTarget] = useState<SeatingTableWithSeats | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SeatingTableWithSeats | null>(null);
   const [pendingTableId, setPendingTableId] = useState<string | null>(null);
@@ -207,18 +220,31 @@ export function AdminSeating({
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-display text-2xl text-burgundy">Plano de mesas</h2>
-        <button
-          type="button"
-          onClick={() => {
-            setFormTarget(null);
-            setShowCreate(true);
-          }}
-          disabled={loading}
-          className="btn-primary text-sm"
-        >
-          <Plus className="w-4 h-4" aria-hidden />
-          Nueva mesa
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setShowReorder(true)}
+            disabled={loading || tables.length < 2}
+            aria-label="Reordenar mesas"
+            title="Cambiar el orden global de las mesas"
+            className="btn-outline text-sm disabled:opacity-50"
+          >
+            <ArrowDownUp className="w-4 h-4" aria-hidden />
+            Reordenar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setFormTarget(null);
+              setShowCreate(true);
+            }}
+            disabled={loading}
+            className="btn-primary text-sm"
+          >
+            <Plus className="w-4 h-4" aria-hidden />
+            Nueva mesa
+          </button>
+        </div>
       </div>
 
       <AnimatePresence>
@@ -376,6 +402,21 @@ export function AdminSeating({
                 `Mesa "${state.name}" creada`
               );
               setShowCreate(false);
+            }}
+          />
+        )}
+        {showReorder && tables.length >= 2 && (
+          <ReorderTablesModal
+            tables={tables}
+            onClose={() => setShowReorder(false)}
+            onSubmit={async (orderedIds) => {
+              await run(
+                () => setPendingTableId("__reorder__"),
+                () => setPendingTableId(null),
+                () => onReorderTables(orderedIds),
+                "Orden de mesas guardado"
+              );
+              setShowReorder(false);
             }}
           />
         )}
@@ -615,6 +656,225 @@ function TableFormModal({ title, initial, onClose, onSubmit }: TableFormModalPro
         </form>
       </motion.div>
     </motion.div>
+  );
+}
+
+/* ============================================
+   ReorderTablesModal — editor del orden global
+   de las mesas. Tres mecanismos sincronizados:
+   1. Drag & drop desde el grip (Reorder.Item +
+      useDragControls, solo el handle inicia).
+   2. Select de posición 1..N (move-to-slot).
+   3. Botones subir/bajar un lugar.
+   Al guardar persiste display_order=0..N-1.
+   ============================================ */
+
+interface ReorderTablesModalProps {
+  tables: SeatingTableWithSeats[];
+  onClose: () => void;
+  onSubmit: (orderedIds: string[]) => Promise<void>;
+}
+
+function ReorderTablesModal({ tables, onClose, onSubmit }: ReorderTablesModalProps) {
+  const prefersReduced = useReducedMotion();
+  const [order, setOrder] = useState<string[]>(() => tables.map((t) => t.id));
+  const [submitting, setSubmitting] = useState(false);
+
+  const byId = useMemo(() => new Map(tables.map((t) => [t.id, t])), [tables]);
+
+  /** Mueve la mesa en `from` hasta la posición `to` (move-to-slot). */
+  const moveTo = (from: number, to: number) => {
+    setOrder((cur) => {
+      if (from === to || from < 0 || to < 0 || from >= cur.length || to >= cur.length) return cur;
+      const next = cur.slice();
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  const moveBy = (id: string, delta: number) => {
+    const from = order.indexOf(id);
+    moveTo(from, from + delta);
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      await onSubmit(order);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={prefersReduced ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={prefersReduced ? { opacity: 0 } : { opacity: 0 }}
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-burgundy/15 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reorder-tables-title"
+    >
+      <motion.div
+        initial={prefersReduced ? false : { opacity: 0, scale: 0.95, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={prefersReduced ? { opacity: 0 } : { opacity: 0, scale: 0.95, y: 8 }}
+        transition={{ duration: 0.25, ease: EASE }}
+        onClick={(e) => e.stopPropagation()}
+        className="glass-strong p-6 sm:p-8 max-w-md w-full"
+      >
+        <h3 id="reorder-tables-title" className="text-display text-2xl text-burgundy mb-1.5 text-center">
+          Reordenar mesas
+        </h3>
+        <p className="text-burgundy/50 text-xs text-center mb-5">
+          Arrastra el grip, elige la posición o usa las flechas. El nuevo orden
+          se refleja en el plano y en el Excel.
+        </p>
+
+        <form onSubmit={submit}>
+          <Reorder.Group
+            axis="y"
+            values={order}
+            onReorder={setOrder}
+            className="space-y-2 max-h-[55vh] overflow-y-auto pr-1 [scrollbar-width:thin]"
+          >
+            {order.map((id, idx) => {
+              const table = byId.get(id);
+              if (!table) return null;
+              return (
+                <ReorderRow
+                  key={id}
+                  value={id}
+                  index={idx}
+                  total={order.length}
+                  name={table.name}
+                  occupied={table.seats.length}
+                  capacity={table.capacity}
+                  onMoveTo={(to) => moveTo(idx, to)}
+                  onMoveBy={(delta) => moveBy(id, delta)}
+                />
+              );
+            })}
+          </Reorder.Group>
+
+          <div className="flex gap-3 justify-end pt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-outline text-sm"
+              disabled={submitting}
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="btn-primary text-sm"
+              disabled={submitting}
+            >
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Guardando…
+                </span>
+              ) : (
+                "Guardar orden"
+              )}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+interface ReorderRowProps {
+  value: string;
+  index: number;
+  total: number;
+  name: string;
+  occupied: number;
+  capacity: number;
+  onMoveTo: (to: number) => void;
+  onMoveBy: (delta: number) => void;
+}
+
+/** Fila slim: grip + select posición + nombre + ocupación + flechas. */
+function ReorderRow({
+  value,
+  index,
+  total,
+  name,
+  occupied,
+  capacity,
+  onMoveTo,
+  onMoveBy,
+}: ReorderRowProps) {
+  const dragControls = useDragControls();
+
+  return (
+    <Reorder.Item
+      value={value}
+      dragListener={false}
+      dragControls={dragControls}
+      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-champagne/30 bg-wine-deep/30 select-none"
+    >
+      <button
+        type="button"
+        onPointerDown={(e) => dragControls.start(e)}
+        aria-label={`Arrastrar ${name}`}
+        title="Arrastra para reordenar"
+        className="flex items-center justify-center w-8 h-8 -my-1 rounded-lg text-burgundy/40 hover:text-burgundy hover:bg-silver/15 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+      >
+        <GripVertical className="w-4 h-4" aria-hidden />
+      </button>
+
+      <select
+        value={index}
+        onChange={(e) => onMoveTo(Number(e.target.value))}
+        aria-label={`Posición de ${name}`}
+        title="Posición"
+        className="w-14 px-1.5 py-1 rounded-md border border-champagne/40 bg-wine-deep/40 text-burgundy text-sm tabular-nums text-center focus:outline-none focus:ring-2 focus:ring-silver/50 flex-shrink-0 [scrollbar-width:thin]"
+      >
+        {Array.from({ length: total }, (_, i) => (
+          <option key={i} value={i}>
+            {i + 1}
+          </option>
+        ))}
+      </select>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-burgundy text-sm font-medium truncate">{name}</p>
+        <p className="text-burgundy/50 text-xs tabular-nums">
+          {occupied}/{capacity} ocupados
+        </p>
+      </div>
+
+      <div className="flex flex-col flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => onMoveBy(-1)}
+          disabled={index === 0}
+          aria-label={`Subir ${name}`}
+          title="Subir un lugar"
+          className="inline-flex items-center justify-center w-7 h-6 rounded-t-md text-burgundy/60 hover:text-burgundy hover:bg-silver/15 disabled:opacity-30 transition-colors"
+        >
+          <ChevronUp className="w-3.5 h-3.5" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => onMoveBy(1)}
+          disabled={index === total - 1}
+          aria-label={`Bajar ${name}`}
+          title="Bajar un lugar"
+          className="inline-flex items-center justify-center w-7 h-6 rounded-b-md text-burgundy/60 hover:text-burgundy hover:bg-silver/15 disabled:opacity-30 transition-colors"
+        >
+          <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+        </button>
+      </div>
+    </Reorder.Item>
   );
 }
 

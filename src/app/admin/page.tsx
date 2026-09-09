@@ -329,6 +329,20 @@ export default function AdminPage() {
     seatingFetch.retry();
   };
 
+  // --- Reorden global de mesas: persiste display_order y re-pide el plano ---
+  const handleReorderTables = async (orderedIds: string[]) => {
+    const res = await fetch("/api/admin/seating/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderedIds }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || "Error al guardar el orden de las mesas");
+    }
+    seatingFetch.retry();
+  };
+
   // --- Exportación a Excel (invitados + mesas) ---
   const handleExportExcel = async () => {
     setExportingExcel(true);
@@ -635,6 +649,7 @@ export default function AdminPage() {
                   onRemoveParty={handleRemoveParty}
                   onRenameSeat={handleRenameSeat}
                   onMoveSeat={handleMoveSeat}
+                  onReorderTables={handleReorderTables}
                 />
               )}
             </motion.div>

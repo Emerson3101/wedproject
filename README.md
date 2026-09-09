@@ -42,7 +42,7 @@ A wedding invitation and management website built for Alma & Chava's September 2
 - **Guest Management** — Sortable, searchable, filterable, paginated, responsive table (stacked cards on mobile) with expandable companion rows, inline add/remove companions (admin exempt from the 2-companion RSVP limit), toast feedback
 - **Song Moderation** — Same responsive table UX; approve/reject song submissions, delete inappropriate content (animated confirmation modal), view vote counts
 - **Messages** — Searchable, paginated read-only view of the personal messages guests leave on RSVP
-- **Mesas (Seating Plan / Plano de Sentado)** — Top-down visual per table (round or rectangular, per-table shape toggle); assign an RSVP lead + their companions (1 person = 1 chair) or add an ad-hoc guest + optional companions; companion names snapshotted at seating time (never resynced, see §10 #22 of the compendium for the drift chip). Per-chair rename/remove + per-party remove. Capacity server-enforced (409 on overflow). Partial unique index keeps an RSVP lead to one chair across the whole plan
+- **Mesas (Seating Plan / Plano de Sentado)** — Top-down visual per table (round or rectangular, per-table shape toggle); assign an RSVP lead + their companions (1 person = 1 chair) or add an ad-hoc guest + optional companions; companion names snapshotted at seating time (never resynced, see §10 #22 of the compendium for the drift chip). Per-chair rename/remove + per-party remove. Capacity server-enforced (409 on overflow). Partial unique index keeps an RSVP lead to one chair across the whole plan. Global table reordering (`POST /api/admin/seating/reorder`) via a modal with drag-and-drop (grip handle), a position dropdown (1..N) and up/down arrows — the saved order drives the Mesas grid and the Excel export
 - **Excel Export** — One-click generation of styled, concise Excel (.xlsx) workbooks via `/api/admin/export` covering the unified guest list (treating lead guests and companions equally without hierarchy), table-by-table seating distribution, and executive summary
 - **Session** — Cookie-based; header carries sign-out (`/api/admin/logout`) and per-section refresh
 
@@ -498,7 +498,7 @@ Admin seating plan tables (the "Mesas" tab). Created only by `migration_update.s
 | `id` | UUID | PRIMARY KEY | Unique table identifier |
 | `name` | VARCHAR(100) | NOT NULL | Admin-set table name |
 | `capacity` | INTEGER | NOT NULL, `CHECK (capacity BETWEEN 1 AND 50)` | Maximum chairs; default `8`; also enforced server-side (409 on overflow) |
-| `display_order` | INTEGER | NOT NULL | Monotonic ordering on the grid; default `0`; first insert gets `max+1` |
+| `display_order` | INTEGER | NOT NULL | Monotonic ordering on the grid; default `0`; first insert gets `max+1`; rewritten to `0..N-1` by `POST /api/admin/seating/reorder` (drives both the Mesas grid and the Excel export order) |
 | `shape` | VARCHAR(16) | `'round' \| 'rect'`, default `'round'` | Top-down visual shape (admin toolbar toggle) |
 | `created_at` | TIMESTAMPTZ | NOT NULL | Record creation timestamp |
 
@@ -978,15 +978,30 @@ Create a new table.
 
 Edit a table (dirty fields only).
 
-**Request:** any subset of `{ "name", "capacity", "shape" }`.
+**Request:** any subset of `{ "name", "capacity", "shape", "displayOrder" }`.
 
 **Response (200):** `{ "ok": true, "table": {...} }`
+
+> For whole-plan reordering use `POST /api/admin/seating/reorder` (batch) instead of per-table `displayOrder` PATCHes.
 
 #### DELETE /api/admin/seating/tables/[tableId]
 
 Delete the table. Cascades to `seating_seats` via `ON DELETE CASCADE`.
 
 **Response (200):** `{ "ok": true }`
+
+#### POST /api/admin/seating/reorder
+
+Persist the global table order. Reassigns `display_order = 0..N-1`, so the Mesas grid and the Excel export (both sort by `display_order`) permanently reflect the new order. Fires when the couple saves the reorder modal (drag-and-drop grip, position dropdown, or up/down arrows).
+
+**Request:**
+```json
+{ "orderedIds": ["uuid-a", "uuid-c", "uuid-b"] }
+```
+
+The array must be an exact permutation of the current table IDs — `409` if a table was created/deleted concurrently (the client re-fetches the plan).
+
+**Response (200):** `{ "ok": true, "tables": [...] }` (rows in the new order)
 
 #### POST /api/admin/seating/tables/[tableId]/seats
 
