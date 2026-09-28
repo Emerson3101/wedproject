@@ -396,7 +396,6 @@ import { isSupabaseConfigured, isResendConfigured } from '@/lib/config';
 - The middleware in `src/proxy.ts` performs a "fail closed" check: if `INVITATION_CODE` or `ADMIN_PASSWORD` are not set, all requests return 503
 - Test routes (`/test`, `/api/test/*`) automatically return 404 in production (`NODE_ENV !== 'development'`)
 - Never commit `.env.local` to version control
-- **Leaked `YOUTUBE_API_KEY` (rotate manually):** a real key was committed to git history in a prior session. The tracked files are now clean (`.env.example` holds a placeholder, no real `AIza…` string survives in `src/` or root config). This repo intentionally **does not** rewrite git history, so the only remaining remediation is **manual and user-owned**: rotate the key in the Google Cloud Credential console and update the deployed value on Vercel. See `docs/COMPENDIUM.md §10 #5`.
 
 ---
 
