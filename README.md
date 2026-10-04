@@ -1321,7 +1321,7 @@ Common issues and solutions:
 | GSAP animations not working | Check that sections are visible; GSAP enhances, not controls |
 | Database errors | Verify Supabase URL and keys; check RLS policies |
 | Cookie not setting | Ensure HTTPS in production; cookies require secure context |
-| YouTube search failing | Check API key quota; verify `YOUTUBE_API_KEY` is set (and that you rotated it in Google Cloud if you used the previously-leaked value — see Security Notes) |
+| YouTube search failing | Check API key quota; verify `YOUTUBE_API_KEY` is set |
 | Confirmation email shows wrong date | Fixed in WS2 — `api/rsvp/route.ts` now reads `src/data/wedding.ts` (2026); if you see "2025" you're on a pre-WS2 build |
 | DB seed shows Emerson/Plancarte, 2025 | Fixed in WS8 — seeds now use 12 Sept 2026 / Alma & Chava / `almaychava`. For an already-seeded DB, run `migration_clean_admin_settings.sql` once |
 
